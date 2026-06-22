@@ -10,6 +10,7 @@
 
 struct ContactInfo {
     QString username;
+    QString nickname;
     QString role;
     bool online = false;
 };
@@ -48,6 +49,7 @@ public:
 
     QString myUsername() const { return m_username; }
     QString myRole() const { return m_role; }
+    QString myNickname() const { return m_myNickname; }
     QMap<QString, ContactInfo> contacts() const { return m_contacts; }
 
 signals:
@@ -96,6 +98,7 @@ private:
     QByteArray m_buffer;
     QString m_username;
     QString m_role;
+    QString m_myNickname;
     QMap<QString, ContactInfo> m_contacts;
     QMap<QString, FileTransferInfo> m_fileTransfers;
 

@@ -17,7 +17,7 @@ public:
     explicit LoginWindow(ChatClient *client, QWidget *parent = nullptr);
 
 signals:
-    void loginSuccess(const QString &username, const QString &role);
+    void loginSuccess(const QString &username, const QString &role, const QString &nickname);
 
 private slots:
     // 登录页

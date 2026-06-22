@@ -120,11 +120,11 @@ void ChatWidget::applyStyles()
     );
 }
 
-void ChatWidget::setChatPartner(const QString &username, const QString &role)
+void ChatWidget::setChatPartner(const QString &username, const QString &role, const QString &displayName)
 {
     m_partner = username;
     m_partnerRole = role;
-    m_partnerLabel->setText(username);
+    m_partnerLabel->setText(displayName);
     if (role == "helper")
         m_partnerRoleLabel->setText("(\xe6\x9c\xac\xe5\x9c\xb0)");
     else

@@ -18,10 +18,10 @@
 #include <QDebug>
 
 MainWindow::MainWindow(ChatClient *client, const QString &username, const QString &role,
-                       QWidget *parent)
-    : QMainWindow(parent), m_client(client), m_username(username), m_role(role)
+                       const QString &nickname, QWidget *parent)
+    : QMainWindow(parent), m_client(client), m_username(username), m_role(role), m_nickname(nickname)
 {
-    setWindowTitle(QString("远程问诊系统 - %1 (%2)").arg(username, role == "doctor" ? "医生" : "患者"));
+    setWindowTitle(QString("远程问诊系统 - %1 (%2)").arg(m_nickname, role == "doctor" ? "医生" : "患者"));
     resize(960, 640);
 
     setupUI();
@@ -49,7 +49,7 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_chatWidget, &ChatWidget::fileAccepted, this, &MainWindow::onFileAcceptFromUI);
     connect(m_chatWidget, &ChatWidget::fileRejected, this, &MainWindow::onFileRejectFromUI);
 
-    statusBar()->showMessage("已连接 - " + username + " (" + (role == "doctor" ? "医生" : "患者") + ")");
+    statusBar()->showMessage("已连接 - " + m_nickname + " (" + (role == "doctor" ? "医生" : "患者") + ")");
 }
 
 void MainWindow::setupUI()
@@ -115,6 +115,14 @@ void MainWindow::applyStyles()
     );
 }
 
+QString MainWindow::displayName(const QString &username) const
+{
+    if (username == m_username)
+        return m_nickname;
+    const ContactInfo ci = m_client->contacts().value(username);
+    return ci.nickname.isEmpty() ? username : ci.nickname;
+}
+
 void MainWindow::onContactSelected(const QString &username)
 {
     // 1. 保存当前对话历史到磁盘
@@ -135,7 +143,7 @@ void MainWindow::onContactSelected(const QString &username)
     m_chatStack->setCurrentIndex(1);
 
     if (username == QString::fromUtf8(MsgType::FileHelper)) {
-        m_chatWidget->setChatPartner(username, "helper");
+        m_chatWidget->setChatPartner(username, "helper", QString::fromUtf8(MsgType::FileHelper));
         // 加载文件传输助手历史
         QList<HistoryMessage> history = m_history->loadHistory(m_username, username);
         if (!history.isEmpty())
@@ -145,7 +153,9 @@ void MainWindow::onContactSelected(const QString &username)
 
     QMap<QString, ContactInfo> contacts = m_client->contacts();
     QString role = contacts.value(username).role;
-    m_chatWidget->setChatPartner(username, role);
+    QString nick = contacts.value(username).nickname;
+    if (nick.isEmpty()) nick = username;
+    m_chatWidget->setChatPartner(username, role, nick);
 
     // 4. 从磁盘加载该联系人的历史消息
     QList<HistoryMessage> history = m_history->loadHistory(m_username, username);
@@ -179,7 +189,7 @@ void MainWindow::onTextMessageReceived(const QString &from, const QString &to,
 
     // 仅当前对话联系人才实时显示
     if (m_chatWidget->currentPartner() == partner) {
-        m_chatWidget->addTextMessage(from, text, timestamp, false);
+        m_chatWidget->addTextMessage(displayName(from), text, timestamp, false);
     }
 }
 
@@ -199,8 +209,8 @@ void MainWindow::onSendTextMessage(const QString &to, const QString &text)
 
     // 文件传输助手：本地回环，不经过服务端
     if (to == QString::fromUtf8(MsgType::FileHelper)) {
-        m_chatWidget->addTextMessage(m_username, text, now, true);
-        m_chatWidget->addTextMessage(m_username, text, now, false);
+        m_chatWidget->addTextMessage(m_nickname, text, now, true);
+        m_chatWidget->addTextMessage(m_nickname, text, now, false);
         return;
     }
 
@@ -218,7 +228,7 @@ void MainWindow::onSendTextMessage(const QString &to, const QString &text)
     m_msgBuffers[to].append(entry);
 
     // 立即在UI显示自己发送的消息（发送时一定在当前对话）
-    m_chatWidget->addTextMessage(m_username, text, now, true);
+    m_chatWidget->addTextMessage(m_nickname, text, now, true);
 }
 
 void MainWindow::onSendFileRequest(const QString &to)
@@ -236,14 +246,14 @@ void MainWindow::onSendFileRequest(const QString &to)
         if (savePath.isEmpty()) return;
 
         // 显示发送卡片
-        m_chatWidget->addFileMessage(m_username, fi.fileName(), fi.size(), "helper_send", true);
+        m_chatWidget->addFileMessage(m_nickname, fi.fileName(), fi.size(), "helper_send", true);
         m_chatWidget->setFileCompleted("helper_send");
 
         // 复制文件
         QFile::copy(filePath, savePath);
 
         // 显示接收卡片
-        m_chatWidget->addFileMessage(m_username, fi.fileName(), fi.size(), "helper_recv", false);
+        m_chatWidget->addFileMessage(m_nickname, fi.fileName(), fi.size(), "helper_recv", false);
         m_chatWidget->setFileCompleted("helper_recv");
 
         statusBar()->showMessage("文件已保存到: " + savePath, 5000);
@@ -253,7 +263,7 @@ void MainWindow::onSendFileRequest(const QString &to)
     m_client->sendFile(to, filePath);
 
     // 在UI显示文件发送卡片
-    m_chatWidget->addFileMessage(m_username, fi.fileName(), fi.size(), "pending_send", true);
+    m_chatWidget->addFileMessage(m_nickname, fi.fileName(), fi.size(), "pending_send", true);
 }
 
 void MainWindow::onFileOfferReceived(const QString &from, const QString &fileName,
@@ -275,9 +285,9 @@ void MainWindow::onFileOfferReceived(const QString &from, const QString &fileNam
 
     // 当前联系人 → 显示文件卡片；非当前 → 弹窗通知
     if (m_chatWidget->currentPartner() == from) {
-        m_chatWidget->addFileMessage(from, fileName, fileSize, fileId, false);
+        m_chatWidget->addFileMessage(displayName(from), fileName, fileSize, fileId, false);
     } else {
-        showMessage("文件接收", from + " 向您发送文件: " + fileName);
+        showMessage("文件接收", displayName(from) + " 向您发送文件: " + fileName);
     }
 }
 
@@ -359,10 +369,11 @@ void MainWindow::flushBufferToUI(const QString &partner)
     if (buffer.isEmpty()) return;
 
     for (const MsgBufEntry &e : buffer) {
+        QString sender = displayName(e.sender);
         if (e.type == 0) {
-            m_chatWidget->addTextMessage(e.sender, e.text, e.timestamp, e.isMine);
+            m_chatWidget->addTextMessage(sender, e.text, e.timestamp, e.isMine);
         } else {
-            m_chatWidget->addFileMessage(e.sender, e.fileName, e.fileSize, e.fileId, e.isMine);
+            m_chatWidget->addFileMessage(sender, e.fileName, e.fileSize, e.fileId, e.isMine);
         }
     }
     buffer.clear();

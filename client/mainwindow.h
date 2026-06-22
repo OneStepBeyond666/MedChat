@@ -32,7 +32,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 public:
     explicit MainWindow(ChatClient *client, const QString &username, const QString &role,
-                        QWidget *parent = nullptr);
+                        const QString &nickname, QWidget *parent = nullptr);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -64,10 +64,12 @@ private:
     void saveCurrentHistory();
     void flushBufferToUI(const QString &partner);
     void saveAllBuffers();
+    QString displayName(const QString &username) const;
 
     ChatClient *m_client;
     QString m_username;
     QString m_role;
+    QString m_nickname;
     ContactListWidget *m_contactList;
     QStackedWidget *m_chatStack;
     ChatWidget *m_chatWidget;

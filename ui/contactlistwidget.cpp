@@ -74,11 +74,12 @@ void ContactListWidget::updateContacts(const QMap<QString, ContactInfo> &contact
 
     // 先显示在线的医生，再显示在线的病人，然后离线的
     auto addContact = [this, &filter](const QString &username, const ContactInfo &ci) {
-        if (!filter.isEmpty() && !username.toLower().contains(filter))
+        QString display = ci.nickname.isEmpty() ? username : ci.nickname;
+        if (!filter.isEmpty() && !username.toLower().contains(filter) && !display.toLower().contains(filter))
             return;
         QString roleLabel = (ci.role == "doctor") ? "[医生]" : "[患者]";
         QString onlineDot = ci.online ? QStringLiteral(" \u25CF") : QStringLiteral(" \u25CB");
-        QListWidgetItem *item = new QListWidgetItem(roleLabel + " " + username + onlineDot);
+        QListWidgetItem *item = new QListWidgetItem(roleLabel + " " + display + onlineDot);
         item->setData(Qt::UserRole, username);
 
         if (ci.online) {

@@ -133,10 +133,12 @@ void ChatServer::handleRegister(ClientHandler *handler, const QJsonObject &msg)
     if (m_userManager->registerUser(username, password, role, nickname)) {
         handler->setUsername(username);
         handler->setRole(role);
-        handler->sendMessage(Protocol::makeAuthResult(true, "注册成功", role));
-        QString displayNick = nickname.trimmed().isEmpty() ? username : nickname.trimmed();
+        QString actualNick = nickname.trimmed().isEmpty() ? username : nickname.trimmed();
+        QJsonObject authResp = Protocol::makeAuthResult(true, "注册成功", role);
+        authResp["nickname"] = actualNick;
+        handler->sendMessage(authResp);
         qDebug() << QString("[注册成功] %1 (昵称: %2, %3) 已注册并上线")
-                        .arg(username, displayNick, role == "doctor" ? "医生" : "患者");
+                        .arg(username, actualNick, role == "doctor" ? "医生" : "患者");
         broadcastOnlineStatus();
         sendContactList(handler);
     } else {
@@ -169,9 +171,12 @@ void ChatServer::handleLogin(ClientHandler *handler, const QJsonObject &msg)
     if (m_userManager->authenticate(username, password, role)) {
         handler->setUsername(username);
         handler->setRole(role);
-        handler->sendMessage(Protocol::makeAuthResult(true, "登录成功", role));
-        qDebug() << QString("[上线] %1 (%2) 登录成功")
-                        .arg(username, role == "doctor" ? "医生" : "患者");
+        UserInfo info = m_userManager->getUserInfoByName(username);
+        QJsonObject authResp = Protocol::makeAuthResult(true, "登录成功", role);
+        authResp["nickname"] = info.nickname;
+        handler->sendMessage(authResp);
+        qDebug() << QString("[上线] %1 (昵称: %2, %3) 登录成功")
+                        .arg(username, info.nickname, role == "doctor" ? "医生" : "患者");
 
         // 统计在线人数
         int onlineCount = 0;
@@ -290,8 +295,10 @@ void ChatServer::broadcastOnlineStatus()
         QJsonArray users;
         for (ClientHandler *other : m_clients) {
             if (other != h && !other->username().isEmpty()) {
+                UserInfo info = m_userManager->getUserInfoByName(other->username());
                 QJsonObject u;
                 u["username"] = other->username();
+                u["nickname"] = info.nickname;
                 u["role"] = other->role();
                 u["online"] = true;
                 users.append(u);
@@ -309,8 +316,10 @@ void ChatServer::sendContactList(ClientHandler *handler)
     QJsonArray users;
     for (ClientHandler *h : m_clients) {
         if (h != handler && !h->username().isEmpty()) {
+            UserInfo info = m_userManager->getUserInfoByName(h->username());
             QJsonObject u;
             u["username"] = h->username();
+            u["nickname"] = info.nickname;
             u["role"] = h->role();
             u["online"] = true;
             users.append(u);

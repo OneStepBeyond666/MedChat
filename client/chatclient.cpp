@@ -179,6 +179,9 @@ void ChatClient::handleAuthResult(const QJsonObject &msg)
     QString role = msg["role"].toString();
     if (success) {
         m_role = role;
+        m_myNickname = msg["nickname"].toString();
+        if (m_myNickname.isEmpty())
+            m_myNickname = m_username;
     }
     emit authResult(success, message, role);
 }
@@ -191,6 +194,8 @@ void ChatClient::handleContactList(const QJsonObject &msg)
         QJsonObject u = val.toObject();
         ContactInfo ci;
         ci.username = u["username"].toString();
+        ci.nickname = u["nickname"].toString();
+        if (ci.nickname.isEmpty()) ci.nickname = ci.username;
         ci.role = u["role"].toString();
         ci.online = u["online"].toBool();
         m_contacts[ci.username] = ci;
@@ -207,9 +212,14 @@ void ChatClient::handleOnlineStatus(const QJsonObject &msg)
         QString username = u["username"].toString();
         if (m_contacts.contains(username)) {
             m_contacts[username].online = true;
+            QString nick = u["nickname"].toString();
+            if (!nick.isEmpty())
+                m_contacts[username].nickname = nick;
         } else {
             ContactInfo ci;
             ci.username = username;
+            ci.nickname = u["nickname"].toString();
+            if (ci.nickname.isEmpty()) ci.nickname = ci.username;
             ci.role = u["role"].toString();
             ci.online = true;
             m_contacts[username] = ci;

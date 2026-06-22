@@ -34,7 +34,7 @@ class ChatWidget : public QWidget
 public:
     explicit ChatWidget(QWidget *parent = nullptr);
 
-    void setChatPartner(const QString &username, const QString &role);
+    void setChatPartner(const QString &username, const QString &role, const QString &displayName);
     void clearChat();
     QString currentPartner() const { return m_partner; }
 
