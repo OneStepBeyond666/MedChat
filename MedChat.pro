@@ -1,4 +1,4 @@
-QT += core gui network widgets
+QT += core gui network widgets sql
 
 CONFIG += c++14 console
 TARGET = MedChat
@@ -25,6 +25,7 @@ SOURCES += \
 
 HEADERS += \
     common/protocol.h \
+    common/constants.h \
     server/chatserver.h \
     server/clienthandler.h \
     server/usermanager.h \

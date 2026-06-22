@@ -1,7 +1,7 @@
 # MedChat Server - Linux 独立服务端
-# 仅依赖 Qt5Core + Qt5Network
+# 仅依赖 Qt5Core + Qt5Network + Qt5Sql
 
-QT += core network
+QT += core network sql
 QT -= gui widgets
 
 CONFIG += c++14 console
@@ -12,7 +12,6 @@ TEMPLATE = app
 
 DEFINES += QT_DEPRECATED_WARNINGS
 
-INCLUDEPATH += $$PWD
 INCLUDEPATH += $$PWD/..
 
 SOURCES += \
@@ -24,6 +23,7 @@ SOURCES += \
 
 HEADERS += \
     ../common/protocol.h \
+    ../common/constants.h \
     ../server/chatserver.h \
     ../server/clienthandler.h \
     ../server/usermanager.h
