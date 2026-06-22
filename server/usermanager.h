@@ -22,7 +22,7 @@ public:
     explicit UserManager(ServerDB *db, QObject *parent = nullptr);
 
     // ---- 核心接口（与旧版兼容） ----
-    bool registerUser(const QString &username, const QString &password, const QString &role);
+    bool registerUser(const QString &username, const QString &password, const QString &role, const QString &nickname);
     bool authenticate(const QString &username, const QString &password, QString &role) const;
     bool userExists(const QString &username) const;
     QList<UserInfo> allUsers() const;

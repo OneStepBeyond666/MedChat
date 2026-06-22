@@ -38,7 +38,7 @@ public:
     void disconnectFromServer();
     bool isConnected() const;
 
-    void sendRegister(const QString &username, const QString &password, const QString &role);
+    void sendRegister(const QString &username, const QString &password, const QString &role, const QString &nickname);
     void sendLogin(const QString &username, const QString &password);
 
     void sendTextMessage(const QString &to, const QString &text);

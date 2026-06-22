@@ -49,12 +49,13 @@ bool ChatClient::isConnected() const
     return m_socket->state() == QAbstractSocket::ConnectedState;
 }
 
-void ChatClient::sendRegister(const QString &username, const QString &password, const QString &role)
+void ChatClient::sendRegister(const QString &username, const QString &password, const QString &role, const QString &nickname)
 {
     QJsonObject obj = Protocol::makeMsg(MsgType::Register);
     obj["username"] = username;
     obj["password"] = password;
     obj["role"] = role;
+    obj["nickname"] = nickname;
     sendJson(obj);
 }
 

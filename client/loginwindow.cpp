@@ -2,16 +2,19 @@
 #include "chatclient.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QMessageBox>
 #include <QInputDialog>
 #include <QTimer>
+
+// ============================================================
+// 构造
+// ============================================================
 
 LoginWindow::LoginWindow(ChatClient *client, QWidget *parent)
     : QWidget(parent), m_client(client),
       m_currentHost("127.0.0.1"), m_currentPort(9527)
 {
     setWindowTitle("远程问诊系统");
-    setFixedSize(420, 520);
+    setFixedSize(420, 580);
 
     setupUI();
     applyStyles();
@@ -20,91 +23,188 @@ LoginWindow::LoginWindow(ChatClient *client, QWidget *parent)
     connect(m_client, &ChatClient::connectionFailed, this, &LoginWindow::onConnectionFailed);
     connect(m_client, &ChatClient::authResult, this, &LoginWindow::onAuthResult);
 
-    // 自动连接内嵌服务端（localhost）
     m_client->connectToServer(m_currentHost, m_currentPort);
 }
 
+// ============================================================
+// UI 构建
+// ============================================================
+
 void LoginWindow::setupUI()
 {
-    QVBoxLayout *layout = new QVBoxLayout(this);
-    layout->setSpacing(14);
-    layout->setContentsMargins(40, 50, 40, 30);
+    QVBoxLayout *root = new QVBoxLayout(this);
+    root->setContentsMargins(0, 0, 0, 0);
+    root->setSpacing(0);
 
-    QLabel *logo = new QLabel(QStringLiteral("\u2695"));
-    logo->setAlignment(Qt::AlignCenter);
-    logo->setStyleSheet("font-size: 48px;");
-    layout->addWidget(logo);
+    m_stack = new QStackedWidget;
 
-    m_titleLabel = new QLabel("远程问诊系统");
-    m_titleLabel->setAlignment(Qt::AlignCenter);
-    m_titleLabel->setObjectName("titleLabel");
-    layout->addWidget(m_titleLabel);
+    // ======================== 登录页 ========================
+    QWidget *loginPage = new QWidget;
+    QVBoxLayout *lp = new QVBoxLayout(loginPage);
+    lp->setSpacing(14);
+    lp->setContentsMargins(40, 50, 40, 30);
 
-    m_subtitleLabel = new QLabel("MedChat v1.0");
-    m_subtitleLabel->setAlignment(Qt::AlignCenter);
-    m_subtitleLabel->setObjectName("subtitleLabel");
-    layout->addWidget(m_subtitleLabel);
+    QLabel *logo1 = new QLabel(QStringLiteral("\u2695"));
+    logo1->setAlignment(Qt::AlignCenter);
+    logo1->setStyleSheet("font-size: 48px;");
+    lp->addWidget(logo1);
 
-    layout->addSpacing(16);
+    QLabel *title1 = new QLabel("远程问诊系统");
+    title1->setAlignment(Qt::AlignCenter);
+    title1->setObjectName("titleLabel");
+    lp->addWidget(title1);
 
-    m_usernameEdit = new QLineEdit;
-    m_usernameEdit->setPlaceholderText("用户名");
-    m_usernameEdit->setObjectName("inputField");
-    layout->addWidget(m_usernameEdit);
+    QLabel *sub1 = new QLabel("MedChat v0.3");
+    sub1->setAlignment(Qt::AlignCenter);
+    sub1->setObjectName("subtitleLabel");
+    lp->addWidget(sub1);
 
-    m_passwordEdit = new QLineEdit;
-    m_passwordEdit->setPlaceholderText("密码");
-    m_passwordEdit->setEchoMode(QLineEdit::Password);
-    m_passwordEdit->setObjectName("inputField");
-    layout->addWidget(m_passwordEdit);
+    lp->addSpacing(20);
 
-    m_roleCombo = new QComboBox;
-    m_roleCombo->addItem("医生", QString("doctor"));
-    m_roleCombo->addItem("患者", QString("patient"));
-    m_roleCombo->setObjectName("inputField");
-    m_roleCombo->setFixedHeight(40);
-    layout->addWidget(m_roleCombo);
+    m_loginUserEdit = new QLineEdit;
+    m_loginUserEdit->setPlaceholderText("用户名");
+    m_loginUserEdit->setObjectName("inputField");
+    lp->addWidget(m_loginUserEdit);
 
-    QHBoxLayout *btnLayout = new QHBoxLayout;
-    m_loginBtn = new QPushButton("登录");
+    m_loginPassEdit = new QLineEdit;
+    m_loginPassEdit->setPlaceholderText("密码");
+    m_loginPassEdit->setEchoMode(QLineEdit::Password);
+    m_loginPassEdit->setObjectName("inputField");
+    lp->addWidget(m_loginPassEdit);
+
+    m_loginBtn = new QPushButton("登 录");
     m_loginBtn->setObjectName("primaryBtn");
-    m_loginBtn->setFixedHeight(42);
-    m_registerBtn = new QPushButton("注册");
-    m_registerBtn->setObjectName("secondaryBtn");
-    m_registerBtn->setFixedHeight(42);
-    btnLayout->addWidget(m_loginBtn);
-    btnLayout->addWidget(m_registerBtn);
-    layout->addLayout(btnLayout);
+    m_loginBtn->setFixedHeight(44);
+    lp->addWidget(m_loginBtn);
 
-    m_statusLabel = new QLabel("正在连接服务器...");
-    m_statusLabel->setAlignment(Qt::AlignCenter);
-    m_statusLabel->setObjectName("statusLabel");
-    m_statusLabel->setWordWrap(true);
-    layout->addWidget(m_statusLabel);
+    m_loginStatusLabel = new QLabel("正在连接服务器...");
+    m_loginStatusLabel->setAlignment(Qt::AlignCenter);
+    m_loginStatusLabel->setObjectName("statusLabel");
+    m_loginStatusLabel->setWordWrap(true);
+    lp->addWidget(m_loginStatusLabel);
 
-    layout->addStretch();
+    lp->addStretch();
 
-    // 底部：切换服务器按钮
-    m_switchBtn = new QPushButton("切换服务器");
-    m_switchBtn->setObjectName("linkBtn");
-    m_switchBtn->setFlat(true);
-    m_switchBtn->setCursor(Qt::PointingHandCursor);
-    QHBoxLayout *bottomLayout = new QHBoxLayout;
-    bottomLayout->addStretch();
-    bottomLayout->addWidget(m_switchBtn);
-    bottomLayout->addStretch();
-    layout->addLayout(bottomLayout);
+    // 底部链接行
+    QHBoxLayout *loginBottom = new QHBoxLayout;
+    QPushButton *goRegBtn = new QPushButton("没有账号？去注册");
+    goRegBtn->setObjectName("linkBtn");
+    goRegBtn->setFlat(true);
+    goRegBtn->setCursor(Qt::PointingHandCursor);
+    connect(goRegBtn, &QPushButton::clicked, this, &LoginWindow::showRegisterPage);
 
+    m_loginSwitchBtn = new QPushButton("切换服务器");
+    m_loginSwitchBtn->setObjectName("linkBtn");
+    m_loginSwitchBtn->setFlat(true);
+    m_loginSwitchBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_loginSwitchBtn, &QPushButton::clicked, this, &LoginWindow::onSwitchServerClicked);
+
+    loginBottom->addWidget(goRegBtn);
+    loginBottom->addStretch();
+    loginBottom->addWidget(m_loginSwitchBtn);
+    lp->addLayout(loginBottom);
+
+    m_stack->addWidget(loginPage);
+
+    // ======================== 注册页 ========================
+    QWidget *regPage = new QWidget;
+    QVBoxLayout *rp = new QVBoxLayout(regPage);
+    rp->setSpacing(12);
+    rp->setContentsMargins(40, 40, 40, 30);
+
+    QLabel *logo2 = new QLabel(QStringLiteral("\u2695"));
+    logo2->setAlignment(Qt::AlignCenter);
+    logo2->setStyleSheet("font-size: 42px;");
+    rp->addWidget(logo2);
+
+    QLabel *title2 = new QLabel("创建新账号");
+    title2->setAlignment(Qt::AlignCenter);
+    title2->setObjectName("titleLabel");
+    rp->addWidget(title2);
+
+    rp->addSpacing(16);
+
+    m_regUserEdit = new QLineEdit;
+    m_regUserEdit->setPlaceholderText("用户名（登录凭证）");
+    m_regUserEdit->setObjectName("inputField");
+    rp->addWidget(m_regUserEdit);
+
+    m_regNickEdit = new QLineEdit;
+    m_regNickEdit->setPlaceholderText("昵称（显示名称）");
+    m_regNickEdit->setObjectName("inputField");
+    rp->addWidget(m_regNickEdit);
+
+    m_regPassEdit = new QLineEdit;
+    m_regPassEdit->setPlaceholderText("密码");
+    m_regPassEdit->setEchoMode(QLineEdit::Password);
+    m_regPassEdit->setObjectName("inputField");
+    rp->addWidget(m_regPassEdit);
+
+    m_regPassConfirmEdit = new QLineEdit;
+    m_regPassConfirmEdit->setPlaceholderText("确认密码");
+    m_regPassConfirmEdit->setEchoMode(QLineEdit::Password);
+    m_regPassConfirmEdit->setObjectName("inputField");
+    rp->addWidget(m_regPassConfirmEdit);
+
+    m_regRoleCombo = new QComboBox;
+    m_regRoleCombo->addItem("我是医生", QString("doctor"));
+    m_regRoleCombo->addItem("我是患者", QString("patient"));
+    m_regRoleCombo->setObjectName("inputField");
+    m_regRoleCombo->setFixedHeight(40);
+    rp->addWidget(m_regRoleCombo);
+
+    m_regBtn = new QPushButton("注 册");
+    m_regBtn->setObjectName("primaryBtn");
+    m_regBtn->setFixedHeight(44);
+    rp->addWidget(m_regBtn);
+
+    m_regStatusLabel = new QLabel("");
+    m_regStatusLabel->setAlignment(Qt::AlignCenter);
+    m_regStatusLabel->setObjectName("statusLabel");
+    m_regStatusLabel->setWordWrap(true);
+    rp->addWidget(m_regStatusLabel);
+
+    rp->addStretch();
+
+    // 底部链接行
+    QHBoxLayout *regBottom = new QHBoxLayout;
+    QPushButton *goLoginBtn = new QPushButton("已有账号？去登录");
+    goLoginBtn->setObjectName("linkBtn");
+    goLoginBtn->setFlat(true);
+    goLoginBtn->setCursor(Qt::PointingHandCursor);
+    connect(goLoginBtn, &QPushButton::clicked, this, &LoginWindow::showLoginPage);
+
+    m_regSwitchBtn = new QPushButton("切换服务器");
+    m_regSwitchBtn->setObjectName("linkBtn");
+    m_regSwitchBtn->setFlat(true);
+    m_regSwitchBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_regSwitchBtn, &QPushButton::clicked, this, &LoginWindow::onSwitchServerClicked);
+
+    regBottom->addWidget(goLoginBtn);
+    regBottom->addStretch();
+    regBottom->addWidget(m_regSwitchBtn);
+    rp->addLayout(regBottom);
+
+    m_stack->addWidget(regPage);
+
+    // 默认显示登录页
+    m_stack->setCurrentIndex(0);
+    root->addWidget(m_stack);
+
+    // 信号连接
     connect(m_loginBtn, &QPushButton::clicked, this, &LoginWindow::onLoginClicked);
-    connect(m_registerBtn, &QPushButton::clicked, this, &LoginWindow::onRegisterClicked);
-    connect(m_switchBtn, &QPushButton::clicked, this, &LoginWindow::onSwitchServerClicked);
+    connect(m_regBtn,   &QPushButton::clicked, this, &LoginWindow::onRegisterClicked);
 }
+
+// ============================================================
+// 样式
+// ============================================================
 
 void LoginWindow::applyStyles()
 {
     setStyleSheet(
         "QWidget { background-color: #f5f5f5; }"
-        "#titleLabel { font-size: 24px; font-weight: bold; color: #333; }"
+        "#titleLabel { font-size: 22px; font-weight: bold; color: #333; }"
         "#subtitleLabel { font-size: 13px; color: #999; }"
         "#inputField { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; "
         "  font-size: 14px; background: white; }"
@@ -113,33 +213,61 @@ void LoginWindow::applyStyles()
         "  font-size: 15px; font-weight: bold; }"
         "#primaryBtn:hover { background-color: #06ad56; }"
         "#primaryBtn:pressed { background-color: #059a4c; }"
-        "#secondaryBtn { background-color: white; color: #07c160; border: 1px solid #07c160; "
-        "  border-radius: 6px; font-size: 15px; }"
-        "#secondaryBtn:hover { background-color: #e8f8ef; }"
+        "#primaryBtn:disabled { background-color: #a0d8b8; }"
         "#statusLabel { color: #999; font-size: 12px; }"
-        "#linkBtn { color: #07c160; font-size: 13px; text-decoration: underline; }"
+        "#linkBtn { color: #07c160; font-size: 13px; }"
         "#linkBtn:hover { color: #06ad56; }"
     );
 }
 
+// ============================================================
+// 页面切换
+// ============================================================
+
+void LoginWindow::showLoginPage()
+{
+    m_stack->setCurrentIndex(0);
+    m_loginStatusLabel->setText("");
+}
+
+void LoginWindow::showRegisterPage()
+{
+    m_stack->setCurrentIndex(1);
+    m_regStatusLabel->setText("");
+}
+
+// ============================================================
+// 状态消息
+// ============================================================
+
 void LoginWindow::showStatusMessage(const QString &msg, bool isError)
 {
-    m_statusLabel->setText(msg);
-    m_statusLabel->setStyleSheet(isError ? "color: #e74c3c; font-size: 12px;"
-                                         : "color: #07c160; font-size: 12px;");
+    // 根据当前页面选择对应的 status label
+    QLabel *label = (m_stack->currentIndex() == 0) ? m_loginStatusLabel : m_regStatusLabel;
+    label->setText(msg);
+    label->setStyleSheet(isError ? "color: #e74c3c; font-size: 12px;"
+                                 : "color: #07c160; font-size: 12px;");
 }
+
+void LoginWindow::setButtonsEnabled(bool enabled)
+{
+    m_loginBtn->setEnabled(enabled);
+    m_regBtn->setEnabled(enabled);
+}
+
+// ============================================================
+// 服务器切换
+// ============================================================
 
 void LoginWindow::onSwitchServerClicked()
 {
     bool ok = false;
-    // 先输入 IP
     QString host = QInputDialog::getText(this, "切换服务器",
         QString("服务器地址（当前: %1）:").arg(m_currentHost),
         QLineEdit::Normal, m_currentHost, &ok);
     if (!ok || host.trimmed().isEmpty()) return;
     host = host.trimmed();
 
-    // 再输入端口
     int port = QInputDialog::getInt(this, "切换服务器",
         "端口号:", m_currentPort, 1, 65535, 1, &ok);
     if (!ok) return;
@@ -153,15 +281,18 @@ void LoginWindow::reconnectTo(const QString &host, quint16 port)
     m_currentHost = host;
     m_currentPort = port;
     showStatusMessage(QString("正在连接 %1:%2 ...").arg(host).arg(port), false);
-    // 短暂延迟确保旧连接完全断开
     QTimer::singleShot(200, this, [this]() {
         m_client->connectToServer(m_currentHost, m_currentPort);
     });
 }
 
+// ============================================================
+// 网络回调
+// ============================================================
+
 void LoginWindow::onConnected()
 {
-    showStatusMessage(QString("已连接 %1:%2 — 请登录或注册").arg(m_currentHost).arg(m_currentPort), false);
+    showStatusMessage(QString("已连接 %1:%2").arg(m_currentHost).arg(m_currentPort), false);
 }
 
 void LoginWindow::onConnectionFailed(const QString &error)
@@ -169,41 +300,64 @@ void LoginWindow::onConnectionFailed(const QString &error)
     showStatusMessage("连接失败: " + error, true);
 }
 
+// ============================================================
+// 登录
+// ============================================================
+
 void LoginWindow::onLoginClicked()
 {
-    QString username = m_usernameEdit->text().trimmed();
-    QString password = m_passwordEdit->text();
+    QString username = m_loginUserEdit->text().trimmed();
+    QString password = m_loginPassEdit->text();
     if (username.isEmpty() || password.isEmpty()) {
         showStatusMessage("请输入用户名和密码", true);
         return;
     }
-    m_loginBtn->setEnabled(false);
-    m_registerBtn->setEnabled(false);
+    setButtonsEnabled(false);
     showStatusMessage("正在登录...", false);
     m_client->sendLogin(username, password);
 }
 
+// ============================================================
+// 注册
+// ============================================================
+
 void LoginWindow::onRegisterClicked()
 {
-    QString username = m_usernameEdit->text().trimmed();
-    QString password = m_passwordEdit->text();
+    QString username = m_regUserEdit->text().trimmed();
+    QString nickname = m_regNickEdit->text().trimmed();
+    QString password = m_regPassEdit->text();
+    QString confirm  = m_regPassConfirmEdit->text();
+    QString role     = m_regRoleCombo->currentData().toString();
+
     if (username.isEmpty() || password.isEmpty()) {
-        showStatusMessage("请输入用户名和密码", true);
+        showStatusMessage("用户名和密码不能为空", true);
         return;
     }
-    QString role = m_roleCombo->currentData().toString();
-    m_loginBtn->setEnabled(false);
-    m_registerBtn->setEnabled(false);
+    if (nickname.isEmpty())
+        nickname = username;  // 昵称默认等于用户名
+    if (password != confirm) {
+        showStatusMessage("两次输入的密码不一致", true);
+        return;
+    }
+
+    setButtonsEnabled(false);
     showStatusMessage("正在注册...", false);
-    m_client->sendRegister(username, password, role);
+    m_client->sendRegister(username, password, role, nickname);
 }
+
+// ============================================================
+// 认证结果
+// ============================================================
 
 void LoginWindow::onAuthResult(bool success, const QString &message, const QString &role)
 {
-    m_loginBtn->setEnabled(true);
-    m_registerBtn->setEnabled(true);
+    setButtonsEnabled(true);
     if (success) {
-        emit loginSuccess(m_usernameEdit->text().trimmed(), role);
+        // 登录成功 → 使用登录页的用户名；注册成功 → 使用注册页的用户名
+        QString username = (m_stack->currentIndex() == 0)
+            ? m_loginUserEdit->text().trimmed()
+            : m_regUserEdit->text().trimmed();
+        emit loginSuccess(username, role);
     } else {
         showStatusMessage(message, true);
     }

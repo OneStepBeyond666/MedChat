@@ -23,7 +23,7 @@ UserManager::UserManager(ServerDB *db, QObject *parent)
 // 注册
 // ============================================================
 
-bool UserManager::registerUser(const QString &username, const QString &password, const QString &role)
+bool UserManager::registerUser(const QString &username, const QString &password, const QString &role, const QString &nickname)
 {
     if (username.isEmpty() || password.isEmpty())
         return false;
@@ -32,6 +32,9 @@ bool UserManager::registerUser(const QString &username, const QString &password,
 
     QString salt = generateSalt();
     QString hash = hashPassword(password, salt);
+
+    // 昵称为空时默认使用用户名
+    QString actualNick = nickname.trimmed().isEmpty() ? username : nickname.trimmed();
 
     QSqlDatabase db = m_db->database();
     if (!db.transaction()) {
@@ -47,7 +50,7 @@ bool UserManager::registerUser(const QString &username, const QString &password,
     q.bindValue(":username", username);
     q.bindValue(":hash", hash);
     q.bindValue(":salt", salt);
-    q.bindValue(":nickname", username);   // 默认昵称 = 用户名
+    q.bindValue(":nickname", actualNick);
     q.bindValue(":role", role);
 
     bool ok = q.exec();
@@ -62,7 +65,7 @@ bool UserManager::registerUser(const QString &username, const QString &password,
         return false;
     }
 
-    qDebug() << "[UserManager] 注册用户:" << username << "role:" << role;
+    qDebug() << "[UserManager] 注册用户:" << username << "昵称:" << actualNick << "role:" << role;
     return true;
 }
 

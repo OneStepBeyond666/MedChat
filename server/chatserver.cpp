@@ -113,6 +113,7 @@ void ChatServer::handleRegister(ClientHandler *handler, const QJsonObject &msg)
     QString username = msg["username"].toString();
     QString password = msg["password"].toString();
     QString role = msg["role"].toString();
+    QString nickname = msg["nickname"].toString();
 
     if (username.isEmpty() || password.isEmpty() || role.isEmpty()) {
         qDebug() << "[注册失败] 参数不完整";
@@ -129,12 +130,13 @@ void ChatServer::handleRegister(ClientHandler *handler, const QJsonObject &msg)
         handler->sendMessage(Protocol::makeAuthResult(false, "用户名已存在"));
         return;
     }
-    if (m_userManager->registerUser(username, password, role)) {
+    if (m_userManager->registerUser(username, password, role, nickname)) {
         handler->setUsername(username);
         handler->setRole(role);
         handler->sendMessage(Protocol::makeAuthResult(true, "注册成功", role));
-        qDebug() << QString("[注册成功] %1 (%2) 已注册并上线")
-                        .arg(username, role == "doctor" ? "医生" : "患者");
+        QString displayNick = nickname.trimmed().isEmpty() ? username : nickname.trimmed();
+        qDebug() << QString("[注册成功] %1 (昵称: %2, %3) 已注册并上线")
+                        .arg(username, displayNick, role == "doctor" ? "医生" : "患者");
         broadcastOnlineStatus();
         sendContactList(handler);
     } else {
