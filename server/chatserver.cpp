@@ -1,7 +1,10 @@
 #include "chatserver.h"
 #include "clienthandler.h"
 #include "usermanager.h"
+#include "serverdb.h"
 #include "common/protocol.h"
+#include "common/constants.h"
+#include <QCoreApplication>
 #include <QDebug>
 #include <QJsonArray>
 
@@ -9,7 +12,14 @@ ChatServer::ChatServer(quint16 port, QObject *parent)
     : QObject(parent), m_port(port)
 {
     m_tcpServer = new QTcpServer(this);
-    m_userManager = new UserManager("users.json", this);
+
+    // 初始化 SQLite 数据库：{程序目录}/medchat_data/
+    QString dbDir = QCoreApplication::applicationDirPath() + "/" + Constants::DB_FOLDER_NAME;
+    m_serverDB = new ServerDB(dbDir, this);
+
+    // 用户管理器使用 SQLite
+    m_userManager = new UserManager(m_serverDB, this);
+
     connect(m_tcpServer, &QTcpServer::newConnection, this, &ChatServer::onNewConnection);
 }
 

@@ -14,6 +14,7 @@ SOURCES += \
     common/protocol.cpp \
     server/chatserver.cpp \
     server/clienthandler.cpp \
+    server/serverdb.cpp \
     server/usermanager.cpp \
     client/chatclient.cpp \
     client/chathistory.cpp \
@@ -28,6 +29,7 @@ HEADERS += \
     common/constants.h \
     server/chatserver.h \
     server/clienthandler.h \
+    server/serverdb.h \
     server/usermanager.h \
     client/chatclient.h \
     client/chathistory.h \

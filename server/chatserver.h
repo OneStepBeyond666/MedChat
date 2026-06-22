@@ -8,6 +8,7 @@
 
 class ClientHandler;
 class UserManager;
+class ServerDB;
 
 class ChatServer : public QObject
 {
@@ -41,6 +42,7 @@ private:
     ClientHandler* findClient(const QString &username) const;
 
     QTcpServer *m_tcpServer;
+    ServerDB *m_serverDB;
     UserManager *m_userManager;
     QList<ClientHandler*> m_clients;
     quint16 m_port;

@@ -1,8 +1,8 @@
 # MedChat Server - Linux 独立服务端
 # 仅依赖 Qt5Core + Qt5Network + Qt5Sql
 
-QT += core network sql
-QT -= gui widgets
+QT += core network sql gui
+QT -= widgets
 
 CONFIG += c++14 console
 CONFIG -= app_bundle
@@ -19,6 +19,7 @@ SOURCES += \
     ../common/protocol.cpp \
     ../server/chatserver.cpp \
     ../server/clienthandler.cpp \
+    ../server/serverdb.cpp \
     ../server/usermanager.cpp
 
 HEADERS += \
@@ -26,4 +27,5 @@ HEADERS += \
     ../common/constants.h \
     ../server/chatserver.h \
     ../server/clienthandler.h \
+    ../server/serverdb.h \
     ../server/usermanager.h
