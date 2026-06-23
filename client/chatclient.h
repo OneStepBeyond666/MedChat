@@ -71,6 +71,7 @@ signals:
     void fileError(const QString &fileId, const QString &error);
     void fileSizeExceeded(const QString &fileId, const QString &fileName, qint64 fileSize);
     void fileSendInitiated(const QString &to, const QString &fileName, qint64 fileSize, const QString &fileId);
+    void fileSendCompleted(const QString &fileId);
 
     void serverError(const QString &error);
 

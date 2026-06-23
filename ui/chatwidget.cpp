@@ -334,6 +334,9 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
 
             if (rec.status == 1) {
                 fcard->setState(FileMessageCard::Completed);
+            } else if (rec.status == 3) {
+                // status=3: 用户拒绝
+                fcard->setState(FileMessageCard::Rejected, "用户拒绝");
             } else if (rec.status == 2) {
                 fcard->setState(FileMessageCard::Error, "传输失败");
             } else {

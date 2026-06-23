@@ -42,6 +42,7 @@ private slots:
     void onFileSizeExceeded(const QString &fileId, const QString &fileName, qint64 fileSize);
     void onFileSendInitiated(const QString &to, const QString &fileName,
                               qint64 fileSize, const QString &fileId);
+    void onFileSendCompleted(const QString &fileId);
     void onFileAcceptFromUI(const QString &fileId);
     void onFileRejectFromUI(const QString &fileId);
     void onServerError(const QString &error);

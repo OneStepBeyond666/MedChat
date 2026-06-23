@@ -47,6 +47,7 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_client, &ChatClient::fileError, this, &MainWindow::onFileError);
     connect(m_client, &ChatClient::fileSizeExceeded, this, &MainWindow::onFileSizeExceeded);
     connect(m_client, &ChatClient::fileSendInitiated, this, &MainWindow::onFileSendInitiated);
+    connect(m_client, &ChatClient::fileSendCompleted, this, &MainWindow::onFileSendCompleted);
     connect(m_client, &ChatClient::serverError, this, &MainWindow::onServerError);
     connect(m_client, &ChatClient::disconnected, this, &MainWindow::onDisconnected);
 
@@ -326,6 +327,15 @@ void MainWindow::onFileSendInitiated(const QString &to, const QString &fileName,
     m_pendingSendFilePath.clear();
 }
 
+void MainWindow::onFileSendCompleted(const QString &fileId)
+{
+    // 实时将发送方卡片更新为已完成状态
+    m_chatWidget->setFileCompleted(fileId);
+
+    // 确保 file_index 记录为已完成（status=1）
+    LocalDB::instance().updateFileRecord(fileId, 1);
+}
+
 // ============================================================
 // 文件接收
 // ============================================================
@@ -365,6 +375,13 @@ void MainWindow::onFileRejected(const QString &fileId, const QString &reason)
 {
     m_chatWidget->setFileRejected(fileId, reason);
     m_pendingFileOffers.remove(fileId);
+
+    // 发送方被拒绝：更新 file_index 为已拒绝(status=3)并删除本地复制的文件
+    FileRecord rec = LocalDB::instance().getFileRecord(fileId);
+    if (!rec.savePath.isEmpty() && QFile::exists(rec.savePath)) {
+        QFile::remove(rec.savePath);
+    }
+    LocalDB::instance().updateFileRecord(fileId, 3);
 }
 
 void MainWindow::onFileProgress(const QString &fileId, qint64 received, qint64 total)
@@ -404,7 +421,10 @@ void MainWindow::onFileRejectFromUI(const QString &fileId)
 {
     m_client->rejectFile(fileId);
     m_pendingFileOffers.remove(fileId);
-    LocalDB::instance().updateFileRecord(fileId, 2); // 标记为已拒绝/失败
+    LocalDB::instance().updateFileRecord(fileId, 3); // 标记为已拒绝
+
+    // 实时更新接收方卡片为已拒绝状态（fileRejected 信号仅在发送方触发）
+    m_chatWidget->setFileRejected(fileId, "用户拒绝");
 }
 
 // ============================================================

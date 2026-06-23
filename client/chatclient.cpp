@@ -478,4 +478,8 @@ void ChatClient::continueSendingFile(const QString &fileId)
 
     m_pendingSendFiles.remove(fileId);
     file.close();
+
+    // 清理发送方的 transfer 条目并通知 UI 发送完成
+    m_fileTransfers.remove(fileId);
+    emit fileSendCompleted(fileId);
 }
