@@ -18,6 +18,7 @@
 #include <QDir>
 #include <QFile>
 #include <QLabel>
+#include <QUuid>
 #include <QDebug>
 
 MainWindow::MainWindow(ChatClient *client, const QString &username, const QString &role,
@@ -221,8 +222,12 @@ void MainWindow::onSendTextMessage(const QString &to, const QString &text)
 
     // 文件传输助手：本地回环，不经过服务端
     if (to == QString::fromUtf8(MsgType::FileHelper)) {
+        QString helperUid = QString::fromUtf8(MsgType::FileHelper);
         m_chatWidget->addTextMessage(m_nickname, text, now, true);
         m_chatWidget->addTextMessage(m_nickname, text, now, false);
+        persistTextMessage(helperUid, text, now, true);
+        persistTextMessage(helperUid, text, now, false);
+        updateSession(helperUid, text.left(50), now);
         return;
     }
 
@@ -261,17 +266,42 @@ void MainWindow::onSendFileRequest(const QString &to)
             QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + "/" + fi.fileName());
         if (savePath.isEmpty()) return;
 
-        // 显示发送卡片
-        m_chatWidget->addFileMessage(m_nickname, fi.fileName(), fi.size(), "helper_send", true);
-        m_chatWidget->setFileCompleted("helper_send");
+        qint64 now = QDateTime::currentMSecsSinceEpoch();
+        QString helperUid = QString::fromUtf8(MsgType::FileHelper);
 
         // 复制文件
         QFile::copy(filePath, savePath);
 
-        // 显示接收卡片
-        m_chatWidget->addFileMessage(m_nickname, fi.fileName(), fi.size(), "helper_recv", false);
-        m_chatWidget->setFileCompleted("helper_recv");
+        // 生成唯一 fileId 并写入 file_index
+        QString sendId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        QString recvId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        QFileInfo saveFi(savePath);
 
+        FileRecord sendRec;
+        sendRec.fileId = sendId;
+        sendRec.originalName = fi.fileName();
+        sendRec.saveName = saveFi.fileName();
+        sendRec.savePath = savePath;
+        sendRec.size = fi.size();
+        sendRec.status = 1;
+        sendRec.yearMonth = QDate::currentDate().toString("yyyy/MM");
+        LocalDB::instance().insertFileRecord(sendRec);
+
+        FileRecord recvRec = sendRec;
+        recvRec.fileId = recvId;
+        LocalDB::instance().insertFileRecord(recvRec);
+
+        // 显示发送卡片 + 持久化
+        m_chatWidget->addFileMessage(m_nickname, fi.fileName(), fi.size(), sendId, true);
+        m_chatWidget->setFileCompleted(sendId);
+        persistFileMessage(helperUid, fi.fileName(), sendId, now, true);
+
+        // 显示接收卡片 + 持久化
+        m_chatWidget->addFileMessage(m_nickname, fi.fileName(), fi.size(), recvId, false);
+        m_chatWidget->setFileCompleted(recvId);
+        persistFileMessage(helperUid, fi.fileName(), recvId, now, false);
+
+        updateSession(helperUid, "[文件] " + fi.fileName(), now);
         statusBar()->showMessage("文件已保存到: " + savePath, 5000);
         return;
     }
