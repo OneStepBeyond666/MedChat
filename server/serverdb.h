@@ -24,6 +24,12 @@ public:
     /// 好友关系查询：双方是否互为好友（双向 status=1）
     bool areFriends(int uid1, int uid2);
 
+    /// 离线消息：保存离线消息
+    bool saveOfflineMessage(int senderUid, int receiverUid, const QString &payload, int type = 0);
+
+    /// 离线消息：获取并清除用户的所有离线消息（事务保证原子性）
+    QJsonArray getAndClearOfflineMessages(int receiverUid);
+
 private:
     void initDatabase();
     void createTables();

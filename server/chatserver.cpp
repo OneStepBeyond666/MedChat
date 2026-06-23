@@ -185,6 +185,32 @@ void ChatServer::handleLogin(ClientHandler *handler, const QJsonObject &msg)
         }
         qDebug() << QString("[统计] 当前在线用户: %1 人").arg(onlineCount);
 
+        // 离线消息下发
+        int uid = m_userManager->getUidByUsername(username);
+        if (uid > 0) {
+            QJsonArray offlineMessages = m_serverDB->getAndClearOfflineMessages(uid);
+            if (!offlineMessages.isEmpty()) {
+                qDebug() << QString("[离线消息] %1 有 %2 条离线消息，开始下发")
+                                .arg(username).arg(offlineMessages.size());
+                
+                // 遍历结果，通过 Socket 逐条将 payload 发送给客户端
+                for (const QJsonValue &val : offlineMessages) {
+                    if (val.isObject()) {
+                        QJsonObject offlineMsg = val.toObject();
+                        handler->sendMessage(offlineMsg);
+                    }
+                }
+                
+                qDebug() << QString("[离线消息] %1 离线消息下发完成")
+                                .arg(username);
+            }
+        }
+
+        // 发送离线同步结束标志
+        QJsonObject syncDone = Protocol::makeMsg(MsgType::OfflineSync);
+        syncDone["done"] = true;
+        handler->sendMessage(syncDone);
+
         broadcastOnlineStatus();
         sendContactList(handler);
     } else {
@@ -220,9 +246,28 @@ void ChatServer::handleMessage(ClientHandler *handler, const QJsonObject &msg)
     QString text = msg["text"].toString();
     ClientHandler *target = findClient(to);
     if (!target) {
-        qDebug() << QString("[消息失败] %1 -> %2 : 接收方不在线")
+        // 目标不在线，保存离线消息
+        qDebug() << QString("[消息离线] %1 -> %2 : 接收方不在线，保存离线消息")
                         .arg(from, to);
-        handler->sendMessage(Protocol::makeError("用户 " + to + " 不在线"));
+        
+        // 将完整 JSON 帧存入数据库
+        QJsonDocument doc(msg);
+        QString payload = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+        
+        if (m_serverDB->saveOfflineMessage(fromUid, toUid, payload, 0)) {
+            // 离线消息保存成功，通知发送方
+            QJsonObject ack = Protocol::makeMsg("message_ack");
+            ack["to"] = to;
+            ack["time"] = msg["time"];
+            ack["offline"] = true;  // 标记这是离线消息
+            handler->sendMessage(ack);
+            
+            qDebug() << QString("[消息离线] %1 -> %2 : 离线消息已保存")
+                            .arg(from, to);
+        } else {
+            // 保存失败
+            handler->sendMessage(Protocol::makeError("消息发送失败，请重试"));
+        }
         return;
     }
     // 转发消息给接收方
@@ -270,9 +315,10 @@ void ChatServer::handleFileOffer(ClientHandler *handler, const QJsonObject &msg)
 
     ClientHandler *target = findClient(to);
     if (!target) {
-        qDebug() << QString("[文件失败] %1 -> %2 : 接收方不在线 (文件: %3)")
+        // 目标不在线，不缓存文件，直接返回错误
+        qDebug() << QString("[文件离线] %1 -> %2 : 接收方不在线，暂不支持发送离线文件 (文件: %3)")
                         .arg(from, to, fileName);
-        handler->sendMessage(Protocol::makeError("用户 " + to + " 不在线"));
+        handler->sendMessage(Protocol::makeError("对方不在线，暂不支持发送离线文件"));
         return;
     }
     QJsonObject fwd = msg;

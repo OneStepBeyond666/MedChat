@@ -156,3 +156,98 @@ QSqlDatabase ServerDB::cloneConnection(const QString &connName)
     }
     return clone;
 }
+
+bool ServerDB::saveOfflineMessage(int senderUid, int receiverUid, const QString &payload, int type)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+
+    q.prepare(
+        "INSERT INTO offline_messages (sender_uid, receiver_uid, payload, type, timestamp) "
+        "VALUES (:sender, :receiver, :payload, :type, :timestamp)"
+    );
+    q.bindValue(":sender", senderUid);
+    q.bindValue(":receiver", receiverUid);
+    q.bindValue(":payload", payload);
+    q.bindValue(":type", type);
+    q.bindValue(":timestamp", QDateTime::currentSecsSinceEpoch());
+
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] 保存离线消息失败:" << q.lastError().text();
+        return false;
+    }
+
+    qDebug() << "[ServerDB] 离线消息已保存: sender=" << senderUid << "receiver=" << receiverUid;
+    return true;
+}
+
+QJsonArray ServerDB::getAndClearOfflineMessages(int receiverUid)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QJsonArray messages;
+
+    // 使用事务保证原子性：查询和下发过程中如果服务端崩溃，不会导致消息丢失或重复下发
+    db.transaction();
+
+    // 1. 查询所有离线消息
+    QSqlQuery selectQuery(db);
+    selectQuery.prepare(
+        "SELECT id, sender_uid, payload, type, timestamp "
+        "FROM offline_messages "
+        "WHERE receiver_uid = :receiver "
+        "ORDER BY timestamp ASC"
+    );
+    selectQuery.bindValue(":receiver", receiverUid);
+
+    if (!selectQuery.exec()) {
+        qWarning() << "[ServerDB] 查询离线消息失败:" << selectQuery.lastError().text();
+        db.rollback();
+        return messages;
+    }
+
+    // 2. 收集所有消息 ID（用于后续删除）
+    QList<int> messageIds;
+    while (selectQuery.next()) {
+        int id = selectQuery.value("id").toInt();
+        QString payload = selectQuery.value("payload").toString();
+
+        messageIds.append(id);
+
+        // 将 payload 解析为 JSON 对象
+        QJsonParseError parseError;
+        QJsonDocument doc = QJsonDocument::fromJson(payload.toUtf8(), &parseError);
+        if (parseError.error == QJsonParseError::NoError && doc.isObject()) {
+            messages.append(doc.object());
+        } else {
+            qWarning() << "[ServerDB] 离线消息 JSON 解析失败: id=" << id;
+        }
+    }
+
+    // 3. 删除已查询的消息（使用事务保证原子性）
+    if (!messageIds.isEmpty()) {
+        QString idList = "";
+        for (int i = 0; i < messageIds.size(); ++i) {
+            if (i > 0) idList += ",";
+            idList += QString::number(messageIds[i]);
+        }
+
+        QSqlQuery deleteQuery(db);
+        deleteQuery.prepare(QString("DELETE FROM offline_messages WHERE id IN (%1)").arg(idList));
+        if (!deleteQuery.exec()) {
+            qWarning() << "[ServerDB] 删除离线消息失败:" << deleteQuery.lastError().text();
+            db.rollback();
+            return QJsonArray();  // 返回空数组，触发重试
+        }
+    }
+
+    // 4. 提交事务
+    if (!db.commit()) {
+        qWarning() << "[ServerDB] 提交事务失败:" << db.lastError().text();
+        db.rollback();
+        return QJsonArray();
+    }
+
+    qDebug() << "[ServerDB] 离线消息已下发并清除: receiver=" << receiverUid
+             << "count=" << messages.size();
+    return messages;
+}
