@@ -1,8 +1,12 @@
 #include "chatclient.h"
+#include "localdb.h"
 #include "common/protocol.h"
+#include "common/constants.h"
 #include <QDebug>
 #include <QJsonArray>
 #include <QFileInfo>
+#include <QDir>
+#include <QDate>
 #include <QUuid>
 #include <QNetworkProxy>
 
@@ -81,6 +85,11 @@ void ChatClient::sendFile(const QString &to, const QString &filePath)
         return;
     }
 
+    if (fi.size() > Constants::MAX_FILE_SIZE) {
+        emit fileError("", QString("文件 \"%1\" 超过100MB传输限制").arg(fi.fileName()));
+        return;
+    }
+
     QString fileId = QUuid::createUuid().toString(QUuid::WithoutBraces);
     QJsonObject offer = Protocol::makeFileOffer(m_username, to, fi.fileName(), fi.size(), fileId);
     sendJson(offer);
@@ -95,22 +104,34 @@ void ChatClient::sendFile(const QString &to, const QString &filePath)
     info.fileSize = fi.size();
     info.isSending = true;
     m_fileTransfers[fileId] = info;
+
+    emit fileSendInitiated(to, fi.fileName(), fi.size(), fileId);
 }
 
-void ChatClient::acceptFile(const QString &fileId, const QString &savePath)
+void ChatClient::acceptFile(const QString &fileId)
 {
     auto it = m_fileTransfers.find(fileId);
     if (it == m_fileTransfers.end()) return;
 
-    it->file = new QFile(savePath);
+    // 在临时目录下创建 {fileId}.tmp
+    QString tmpPath = LocalDB::instance().tempDir() + "/" + fileId + ".tmp";
+    it->file = new QFile(tmpPath);
     if (!it->file->open(QIODevice::WriteOnly)) {
-        emit fileError(fileId, "无法创建文件: " + savePath);
+        emit fileError(fileId, "无法创建临时文件: " + tmpPath);
         delete it->file;
         it->file = nullptr;
         return;
     }
     it->hash = new QCryptographicHash(QCryptographicHash::Md5);
-    m_pendingReceiveFiles[fileId] = savePath;
+
+    // 写入 file_index 记录（status=0 接收中）
+    FileRecord rec;
+    rec.fileId = fileId;
+    rec.originalName = it->fileName;
+    rec.savePath = tmpPath;
+    rec.size = it->fileSize;
+    rec.status = 0;
+    LocalDB::instance().insertFileRecord(rec);
 
     QJsonObject accept = Protocol::makeFileAccept(m_username, it->from, fileId);
     sendJson(accept);
@@ -261,6 +282,15 @@ void ChatClient::handleFileOffer(const QJsonObject &msg)
     qint64 fileSize = static_cast<qint64>(msg["file_size"].toDouble());
     QString fileId = msg["file_id"].toString();
 
+    // 接收端 100MB 限制校验
+    if (fileSize > Constants::MAX_FILE_SIZE) {
+        emit fileSizeExceeded(fileId, fileName, fileSize);
+        // 自动拒绝超限文件
+        QJsonObject reject = Protocol::makeFileReject(m_username, from, fileId, "文件超过100MB传输限制");
+        sendJson(reject);
+        return;
+    }
+
     FileTransferInfo info;
     info.fileId = fileId;
     info.from = from;
@@ -305,6 +335,20 @@ void ChatClient::handleFileData(const QJsonObject &msg)
         if (it->hash)
             it->hash->addData(chunk);
         it->receivedBytes += chunk.size();
+
+        // 累计大小超限检查
+        if (it->receivedBytes > Constants::MAX_FILE_SIZE) {
+            it->file->close();
+            QString tmpPath = it->file->fileName();
+            delete it->file;
+            if (it->hash) delete it->hash;
+            QFile::remove(tmpPath);
+            LocalDB::instance().updateFileRecord(fileId, 2); // 标记失败
+            m_fileTransfers.erase(it);
+            emit fileError(fileId, "文件接收超过100MB限制，已中止");
+            return;
+        }
+
         emit fileProgress(fileId, it->receivedBytes, it->fileSize);
     }
 }
@@ -316,29 +360,61 @@ void ChatClient::handleFileEnd(const QJsonObject &msg)
     auto it = m_fileTransfers.find(fileId);
     if (it == m_fileTransfers.end()) return;
 
-    QString savePath;
-    if (m_pendingReceiveFiles.contains(fileId)) {
-        savePath = m_pendingReceiveFiles[fileId];
-    }
-
+    QString tmpPath;
     if (it->file) {
+        tmpPath = it->file->fileName();
         it->file->close();
+
         // 校验 MD5
         if (it->hash && !md5.isEmpty()) {
             QString localMd5 = QString::fromLatin1(it->hash->result().toHex());
             if (localMd5 != md5) {
-                emit fileError(fileId, "文件校验失败: MD5 不匹配");
+                // 校验失败：删除临时文件，标记失败
                 delete it->file;
-                delete it->hash;
+                if (it->hash) delete it->hash;
+                QFile::remove(tmpPath);
+                LocalDB::instance().updateFileRecord(fileId, 2); // status=失败
                 m_fileTransfers.erase(it);
+                emit fileError(fileId, "文件校验失败: MD5 不匹配");
                 return;
             }
         }
         delete it->file;
         if (it->hash) delete it->hash;
     }
+
+    // MD5 校验通过：从 temp 移动到正式目录
+    QString rootPath = LocalDB::instance().rootPath();
+    QDate today = QDate::currentDate();
+    QString yearMonth = QString("%1/%2")
+                        .arg(today.year())
+                        .arg(today.month(), 2, 10, QChar('0'));
+    QString targetDir = rootPath + "/" + Constants::FILE_SUBDIR + "/" + yearMonth;
+
+    // 确保目标目录存在
+    QDir().mkpath(targetDir);
+
+    // 生成不冲突的文件名
+    QString finalPath = LocalDB::instance().generateUniqueFilePath(targetDir, it->fileName);
+    QFileInfo finalFi(finalPath);
+    QString saveName = finalFi.fileName();
+
+    // 移动文件
+    if (!QFile::rename(tmpPath, finalPath)) {
+        qWarning() << "[ChatClient] 文件移动失败:" << tmpPath << "->" << finalPath;
+        // 回退：尝试复制+删除
+        QFile::copy(tmpPath, finalPath);
+        QFile::remove(tmpPath);
+    }
+
+    // 计算实际 MD5（如果发送方未提供）
+    QString actualMd5 = md5;
+
+    // 更新 file_index：status=1(完成), 最终路径, md5
+    LocalDB::instance().updateFileRecord(fileId, 1, finalPath, actualMd5);
+
     m_fileTransfers.erase(it);
-    emit fileCompleted(fileId, savePath);
+    emit fileCompleted(fileId, finalPath);
 }
 
 void ChatClient::handleError(const QJsonObject &msg)
@@ -368,7 +444,7 @@ void ChatClient::continueSendingFile(const QString &fileId)
 
     QCryptographicHash hash(QCryptographicHash::Md5);
     int seq = 0;
-    const int chunkSize = 65536; // 64KB
+    const int chunkSize = Constants::FILE_CHUNK_SIZE; // 64KB
 
     auto it = m_fileTransfers.find(fileId);
     QString to = (it != m_fileTransfers.end()) ? it->to : QString();

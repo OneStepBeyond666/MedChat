@@ -17,7 +17,7 @@ SOURCES += \
     server/serverdb.cpp \
     server/usermanager.cpp \
     client/chatclient.cpp \
-    client/chathistory.cpp \
+    client/localdb.cpp \
     client/loginwindow.cpp \
     client/mainwindow.cpp \
     ui/contactlistwidget.cpp \
@@ -32,7 +32,7 @@ HEADERS += \
     server/serverdb.h \
     server/usermanager.h \
     client/chatclient.h \
-    client/chathistory.h \
+    client/localdb.h \
     client/loginwindow.h \
     client/mainwindow.h \
     ui/contactlistwidget.h \

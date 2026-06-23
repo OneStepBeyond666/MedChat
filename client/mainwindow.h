@@ -3,7 +3,6 @@
 
 #include <QMainWindow>
 #include <QMap>
-#include <QPair>
 #include <QList>
 #include <QString>
 #include <QCloseEvent>
@@ -12,20 +11,7 @@
 class ChatClient;
 class ContactListWidget;
 class ChatWidget;
-class ChatHistory;
 #include "chatclient.h"
-
-// 消息缓冲条目 —— 与 HistoryMessage 字段一致
-struct MsgBufEntry {
-    int type;        // 0 = text, 1 = file
-    QString sender;
-    QString text;
-    qint64 timestamp;
-    bool isMine;
-    QString fileName;
-    qint64 fileSize;
-    QString fileId;  // 文件传输标识，文本消息为空
-};
 
 class MainWindow : public QMainWindow
 {
@@ -52,6 +38,9 @@ private slots:
     void onFileProgress(const QString &fileId, qint64 received, qint64 total);
     void onFileCompleted(const QString &fileId, const QString &savePath);
     void onFileError(const QString &fileId, const QString &error);
+    void onFileSizeExceeded(const QString &fileId, const QString &fileName, qint64 fileSize);
+    void onFileSendInitiated(const QString &to, const QString &fileName,
+                              qint64 fileSize, const QString &fileId);
     void onFileAcceptFromUI(const QString &fileId);
     void onFileRejectFromUI(const QString &fileId);
     void onServerError(const QString &error);
@@ -61,9 +50,12 @@ private:
     void setupUI();
     void applyStyles();
     void showMessage(const QString &title, const QString &text);
-    void saveCurrentHistory();
-    void flushBufferToUI(const QString &partner);
-    void saveAllBuffers();
+    void loadMessagesFromDB(const QString &contactUid);
+    void persistTextMessage(const QString &contactUid, const QString &content,
+                            qint64 timestamp, bool isMine);
+    void persistFileMessage(const QString &contactUid, const QString &fileName,
+                            const QString &fileId, qint64 timestamp, bool isMine);
+    void updateSession(const QString &contactUid, const QString &preview, qint64 timestamp);
     QString displayName(const QString &username) const;
 
     ChatClient *m_client;
@@ -73,13 +65,12 @@ private:
     ContactListWidget *m_contactList;
     QStackedWidget *m_chatStack;
     ChatWidget *m_chatWidget;
-    ChatHistory *m_history;
-
-    // 消息缓冲区：按联系人存储未合并到视图的消息
-    QMap<QString, QList<MsgBufEntry>> m_msgBuffers;
 
     // 文件接收映射: fileId -> from username
     QMap<QString, QString> m_pendingFileOffers;
+
+    // 待显示的文件发送卡片: fileId -> to (发送文件后等待信号关联)
+    QString m_pendingSendFileTo;
 };
 
 #endif // MAINWINDOW_H

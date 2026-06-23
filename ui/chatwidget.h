@@ -13,7 +13,7 @@
 
 class MessageBubble;
 class FileMessageCard;
-struct HistoryMessage;
+struct StoredMessage;
 
 struct ChatMessage {
     enum Type { Text, File };
@@ -46,20 +46,21 @@ public:
     void setFileRejected(const QString &fileId, const QString &reason);
     void setFileError(const QString &fileId, const QString &error);
 
-    QList<HistoryMessage> getMessages() const;
-    void loadHistoryMessages(const QList<HistoryMessage> &messages);
+    void loadHistoryMessages(const QVector<StoredMessage> &messages);
 
 signals:
     void sendMessage(const QString &to, const QString &text);
     void sendFileRequest(const QString &to);
     void fileAccepted(const QString &fileId);
     void fileRejected(const QString &fileId);
+    void fileOpenRequested(const QString &fileId);
 
 private slots:
     void onSendClicked();
     void onFileBtnClicked();
     void onFileAcceptClicked();
     void onFileRejectClicked();
+    void onFileOpenClicked();
 
 private:
     void setupUI();

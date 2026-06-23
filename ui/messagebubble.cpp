@@ -154,6 +154,15 @@ void FileMessageCard::setupUI(const QString &fileName, qint64 fileSize, bool isM
     connect(m_rejectBtn, &QPushButton::clicked, this, &FileMessageCard::rejectClicked);
     bottomRow->addWidget(m_rejectBtn);
 
+    m_openBtn = new QPushButton("打开文件");
+    m_openBtn->setFixedSize(65, 26);
+    m_openBtn->setStyleSheet(
+        "background: #1976D2; color: white; border: none; border-radius: 4px; font-size: 12px;"
+    );
+    m_openBtn->setVisible(false);
+    connect(m_openBtn, &QPushButton::clicked, this, &FileMessageCard::openClicked);
+    bottomRow->addWidget(m_openBtn);
+
     cardLayout->addLayout(bottomRow);
 
     if (isMine) {
@@ -189,6 +198,7 @@ void FileMessageCard::setState(State state, const QString &info)
         m_progressBar->setValue(100);
         m_acceptBtn->hide();
         m_rejectBtn->hide();
+        m_openBtn->show();
         break;
     case Rejected:
         m_statusLabel->setText("已拒绝: " + info);

@@ -38,6 +38,7 @@ public:
 signals:
     void acceptClicked();
     void rejectClicked();
+    void openClicked();
 
 private:
     void setupUI(const QString &fileName, qint64 fileSize, bool isMine,
@@ -50,6 +51,7 @@ private:
     QLabel *m_statusLabel;
     QPushButton *m_acceptBtn;
     QPushButton *m_rejectBtn;
+    QPushButton *m_openBtn;
 };
 
 #endif // MESSAGEBUBBLE_H

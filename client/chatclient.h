@@ -44,7 +44,7 @@ public:
 
     void sendTextMessage(const QString &to, const QString &text);
     void sendFile(const QString &to, const QString &filePath);
-    void acceptFile(const QString &fileId, const QString &savePath);
+    void acceptFile(const QString &fileId);
     void rejectFile(const QString &fileId, const QString &reason = "用户拒绝");
 
     QString myUsername() const { return m_username; }
@@ -68,6 +68,8 @@ signals:
     void fileProgress(const QString &fileId, qint64 receivedBytes, qint64 totalBytes);
     void fileCompleted(const QString &fileId, const QString &savePath);
     void fileError(const QString &fileId, const QString &error);
+    void fileSizeExceeded(const QString &fileId, const QString &fileName, qint64 fileSize);
+    void fileSendInitiated(const QString &to, const QString &fileName, qint64 fileSize, const QString &fileId);
 
     void serverError(const QString &error);
 
@@ -104,7 +106,6 @@ private:
 
     // 文件发送相关
     QMap<QString, QString> m_pendingSendFiles; // fileId -> filePath
-    QMap<QString, QString> m_pendingReceiveFiles; // fileId -> savePath
 };
 
 #endif // CHATCLIENT_H

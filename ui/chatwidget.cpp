@@ -1,11 +1,12 @@
 #include "chatwidget.h"
 #include "messagebubble.h"
-#include "client/chathistory.h"
+#include "client/localdb.h"
 #include <QHBoxLayout>
-#include <QFileDialog>
 #include <QScrollBar>
 #include <QDateTime>
 #include <QTimer>
+#include <QVector>
+#include <QMessageBox>
 
 ChatWidget::ChatWidget(QWidget *parent)
     : QWidget(parent)
@@ -190,6 +191,7 @@ void ChatWidget::addFileMessage(const QString &sender, const QString &fileName,
     card->fileId = fileId;
     connect(card, &FileMessageCard::acceptClicked, this, &ChatWidget::onFileAcceptClicked);
     connect(card, &FileMessageCard::rejectClicked, this, &ChatWidget::onFileRejectClicked);
+    connect(card, &FileMessageCard::openClicked, this, &ChatWidget::onFileOpenClicked);
 
     m_fileCards[fileId] = card;
     m_messageLayout->insertWidget(insertIndex, card);
@@ -269,34 +271,72 @@ QString ChatWidget::formatTime(qint64 msecsSinceEpoch)
     return dt.toString("HH:mm:ss");
 }
 
-QList<HistoryMessage> ChatWidget::getMessages() const
+void ChatWidget::onFileOpenClicked()
 {
-    QList<HistoryMessage> result;
-    for (const ChatMessage &cm : m_messages) {
-        HistoryMessage hm;
-        hm.type = (cm.type == ChatMessage::Text) ? 0 : 1;
-        hm.sender = cm.sender;
-        hm.text = cm.text;
-        hm.timestamp = cm.timestamp;
-        hm.isMine = cm.isMine;
-        hm.fileName = cm.fileName;
-        hm.fileSize = cm.fileSize;
-        result.append(hm);
+    FileMessageCard *card = qobject_cast<FileMessageCard*>(sender());
+    if (!card) return;
+
+    QString fileId = card->fileId;
+    FileRecord rec = LocalDB::instance().getFileRecord(fileId);
+    if (rec.fileId.isEmpty() || rec.status != 1) {
+        QMessageBox::information(this, "提示", "文件已过期或被清理");
+        return;
     }
-    return result;
+    if (!LocalDB::instance().openFile(fileId)) {
+        QMessageBox::information(this, "提示", "文件已过期或被清理");
+    }
 }
 
-void ChatWidget::loadHistoryMessages(const QList<HistoryMessage> &messages)
+void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages)
 {
-    for (const HistoryMessage &hm : messages) {
-        if (hm.type == 0) {
-            addTextMessage(hm.sender, hm.text, hm.timestamp, hm.isMine);
+    for (const StoredMessage &sm : messages) {
+        if (sm.type == 0) {
+            // 文本消息 — 直接添加（不重复入库）
+            ChatMessage msg;
+            msg.type = ChatMessage::Text;
+            msg.sender = sm.isMine ? "me" : sm.contactUid;
+            msg.text = sm.content;
+            msg.timestamp = sm.timestamp;
+            msg.isMine = sm.isMine;
+            m_messages.append(msg);
+
+            int insertIndex = m_messageLayout->count() - 1;
+            MessageBubble *bubble = new MessageBubble(sm.content, msg.sender,
+                                                       formatTime(sm.timestamp), sm.isMine);
+            m_messageLayout->insertWidget(insertIndex, bubble);
         } else {
-            // 文件消息 — 历史记录中以已完成状态显示
-            QString fakeId = QString("history_%1_%2")
-                .arg(hm.timestamp).arg(hm.fileName);
-            addFileMessage(hm.sender, hm.fileName, hm.fileSize, fakeId, hm.isMine);
-            setFileCompleted(fakeId);
+            // 文件消息 — 查询 file_index 获取实际状态
+            ChatMessage msg;
+            msg.type = ChatMessage::File;
+            msg.sender = sm.isMine ? "me" : sm.contactUid;
+            msg.fileName = sm.content;
+            msg.fileId = sm.fileId;
+            msg.timestamp = sm.timestamp;
+            msg.isMine = sm.isMine;
+            m_messages.append(msg);
+
+            // 查询文件大小
+            FileRecord rec = LocalDB::instance().getFileRecord(sm.fileId);
+            qint64 fsize = rec.size;
+
+            int insertIndex = m_messageLayout->count() - 1;
+            FileMessageCard *fcard = new FileMessageCard(
+                sm.content, fsize, sm.isMine,
+                msg.sender, formatTime(sm.timestamp));
+            fcard->fileId = sm.fileId;
+            connect(fcard, &FileMessageCard::openClicked, this, &ChatWidget::onFileOpenClicked);
+
+            if (rec.status == 1) {
+                fcard->setState(FileMessageCard::Completed);
+            } else if (rec.status == 2) {
+                fcard->setState(FileMessageCard::Error, "传输失败");
+            } else {
+                fcard->setState(FileMessageCard::Error, "未完成");
+            }
+
+            m_fileCards[sm.fileId] = fcard;
+            m_messageLayout->insertWidget(insertIndex, fcard);
         }
     }
+    scrollToBottom();
 }

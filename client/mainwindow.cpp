@@ -1,7 +1,8 @@
 #include "mainwindow.h"
 #include "chatclient.h"
-#include "chathistory.h"
+#include "localdb.h"
 #include "common/protocol.h"
+#include "common/constants.h"
 #include "ui/contactlistwidget.h"
 #include "ui/chatwidget.h"
 #include <QSplitter>
@@ -27,8 +28,10 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     setupUI();
     applyStyles();
 
-    // 初始化聊天历史管理器（exe同目录下的 history 文件夹）
-    m_history = new ChatHistory(QApplication::applicationDirPath() + "/history", this);
+    // 初始化 LocalDB（SQLite 双库 + 目录结构）
+    if (!LocalDB::instance().init(m_username)) {
+        QMessageBox::critical(this, "初始化失败", "无法初始化本地数据库，应用可能无法正常工作。");
+    }
 
     // 连接信号
     connect(m_client, &ChatClient::contactListUpdated, this, &MainWindow::onContactListUpdated);
@@ -40,6 +43,8 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_client, &ChatClient::fileProgress, this, &MainWindow::onFileProgress);
     connect(m_client, &ChatClient::fileCompleted, this, &MainWindow::onFileCompleted);
     connect(m_client, &ChatClient::fileError, this, &MainWindow::onFileError);
+    connect(m_client, &ChatClient::fileSizeExceeded, this, &MainWindow::onFileSizeExceeded);
+    connect(m_client, &ChatClient::fileSendInitiated, this, &MainWindow::onFileSendInitiated);
     connect(m_client, &ChatClient::serverError, this, &MainWindow::onServerError);
     connect(m_client, &ChatClient::disconnected, this, &MainWindow::onDisconnected);
 
@@ -123,11 +128,12 @@ QString MainWindow::displayName(const QString &username) const
     return ci.nickname.isEmpty() ? username : ci.nickname;
 }
 
+// ============================================================
+// 联系人切换 —— 从 SQLite 加载历史消息
+// ============================================================
+
 void MainWindow::onContactSelected(const QString &username)
 {
-    // 1. 保存当前对话历史到磁盘
-    saveCurrentHistory();
-
     // 再次点击同一联系人 → 取消选中，回到占位页
     if (m_chatWidget->currentPartner() == username) {
         m_chatWidget->clearChat();
@@ -136,18 +142,15 @@ void MainWindow::onContactSelected(const QString &username)
         return;
     }
 
-    // 2. 清空聊天区域
+    // 清空聊天区域
     m_chatWidget->clearChat();
 
-    // 3. 切换到聊天页
+    // 切换到聊天页
     m_chatStack->setCurrentIndex(1);
 
     if (username == QString::fromUtf8(MsgType::FileHelper)) {
         m_chatWidget->setChatPartner(username, "helper", QString::fromUtf8(MsgType::FileHelper));
-        // 加载文件传输助手历史
-        QList<HistoryMessage> history = m_history->loadHistory(m_username, username);
-        if (!history.isEmpty())
-            m_chatWidget->loadHistoryMessages(history);
+        loadMessagesFromDB(username);
         return;
     }
 
@@ -157,35 +160,41 @@ void MainWindow::onContactSelected(const QString &username)
     if (nick.isEmpty()) nick = username;
     m_chatWidget->setChatPartner(username, role, nick);
 
-    // 4. 从磁盘加载该联系人的历史消息
-    QList<HistoryMessage> history = m_history->loadHistory(m_username, username);
-    if (!history.isEmpty())
-        m_chatWidget->loadHistoryMessages(history);
+    // 从 SQLite 加载历史消息
+    loadMessagesFromDB(username);
 
-    // 5. 追加缓冲区中的新消息（尚未落盘的部分）
-    flushBufferToUI(username);
+    // 清除未读
+    LocalDB::instance().clearUnread(username);
 }
+
+void MainWindow::loadMessagesFromDB(const QString &contactUid)
+{
+    QVector<StoredMessage> messages = LocalDB::instance().loadMessages(contactUid);
+    if (!messages.isEmpty())
+        m_chatWidget->loadHistoryMessages(messages);
+}
+
+// ============================================================
+// 联系人列表更新
+// ============================================================
 
 void MainWindow::onContactListUpdated(const QMap<QString, ContactInfo> &contacts)
 {
     m_contactList->updateContacts(contacts);
 }
 
+// ============================================================
+// 文本消息收发
+// ============================================================
+
 void MainWindow::onTextMessageReceived(const QString &from, const QString &to,
                                         const QString &text, qint64 timestamp)
 {
     QString partner = (to == m_username) ? from : to;
 
-    // 始终写入缓冲区
-    MsgBufEntry entry;
-    entry.type = 0;
-    entry.sender = from;
-    entry.text = text;
-    entry.timestamp = timestamp;
-    entry.isMine = (from == m_username);
-    entry.fileSize = 0;
-    entry.fileId = "";
-    m_msgBuffers[partner].append(entry);
+    // 持久化到 SQLite
+    persistTextMessage(partner, text, timestamp, false);
+    updateSession(partner, text.left(50), timestamp);
 
     // 仅当前对话联系人才实时显示
     if (m_chatWidget->currentPartner() == partner) {
@@ -195,11 +204,7 @@ void MainWindow::onTextMessageReceived(const QString &from, const QString &to,
 
 void MainWindow::onMessageAck(const QString &to, qint64 timestamp)
 {
-    // 发送成功确认，在当前对话窗口添加自己的消息
-    if (m_chatWidget->currentPartner() == to) {
-        // 我们需要获取之前输入的文本... 这里简化处理
-        // 实际上消息已经在发送时添加到UI了（见 onSendTextMessage）
-    }
+    Q_UNUSED(to)
     Q_UNUSED(timestamp)
 }
 
@@ -216,20 +221,17 @@ void MainWindow::onSendTextMessage(const QString &to, const QString &text)
 
     m_client->sendTextMessage(to, text);
 
-    // 写入缓冲区（保证持久化一致性）
-    MsgBufEntry entry;
-    entry.type = 0;
-    entry.sender = m_username;
-    entry.text = text;
-    entry.timestamp = now;
-    entry.isMine = true;
-    entry.fileSize = 0;
-    entry.fileId = "";
-    m_msgBuffers[to].append(entry);
+    // 持久化到 SQLite
+    persistTextMessage(to, text, now, true);
+    updateSession(to, text.left(50), now);
 
-    // 立即在UI显示自己发送的消息（发送时一定在当前对话）
+    // 立即在UI显示自己发送的消息
     m_chatWidget->addTextMessage(m_nickname, text, now, true);
 }
+
+// ============================================================
+// 文件发送
+// ============================================================
 
 void MainWindow::onSendFileRequest(const QString &to)
 {
@@ -238,6 +240,13 @@ void MainWindow::onSendFileRequest(const QString &to)
     if (filePath.isEmpty()) return;
 
     QFileInfo fi(filePath);
+
+    // 100MB 前置校验
+    if (fi.size() > Constants::MAX_FILE_SIZE) {
+        QMessageBox::warning(this, "文件过大",
+            QString("文件 \"%1\" 超过100MB传输限制，无法发送。").arg(fi.fileName()));
+        return;
+    }
 
     // 文件传输助手：本地复制文件，不走网络
     if (to == QString::fromUtf8(MsgType::FileHelper)) {
@@ -260,28 +269,38 @@ void MainWindow::onSendFileRequest(const QString &to)
         return;
     }
 
+    // 记录待发送目标，等待 fileSendInitiated 信号获取真实 fileId
+    m_pendingSendFileTo = to;
     m_client->sendFile(to, filePath);
-
-    // 在UI显示文件发送卡片
-    m_chatWidget->addFileMessage(m_nickname, fi.fileName(), fi.size(), "pending_send", true);
 }
+
+void MainWindow::onFileSendInitiated(const QString &to, const QString &fileName,
+                                      qint64 fileSize, const QString &fileId)
+{
+    Q_UNUSED(to)
+    // 用真实 fileId 创建文件卡片
+    m_chatWidget->addFileMessage(m_nickname, fileName, fileSize, fileId, true);
+
+    // 持久化文件消息到 SQLite
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+    persistFileMessage(m_pendingSendFileTo, fileName, fileId, now, true);
+    updateSession(m_pendingSendFileTo, "[文件] " + fileName, now);
+    m_pendingSendFileTo.clear();
+}
+
+// ============================================================
+// 文件接收
+// ============================================================
 
 void MainWindow::onFileOfferReceived(const QString &from, const QString &fileName,
                                       qint64 fileSize, const QString &fileId)
 {
     m_pendingFileOffers[fileId] = from;
 
-    // 始终写入缓冲区
-    MsgBufEntry entry;
-    entry.type = 1;
-    entry.sender = from;
-    entry.text = "";
-    entry.timestamp = QDateTime::currentMSecsSinceEpoch();
-    entry.isMine = false;
-    entry.fileName = fileName;
-    entry.fileSize = fileSize;
-    entry.fileId = fileId;
-    m_msgBuffers[from].append(entry);
+    // 持久化文件消息到 SQLite
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+    persistFileMessage(from, fileName, fileId, now, false);
+    updateSession(from, "[文件] " + fileName, now);
 
     // 当前联系人 → 显示文件卡片；非当前 → 弹窗通知
     if (m_chatWidget->currentPartner() == from) {
@@ -293,7 +312,6 @@ void MainWindow::onFileOfferReceived(const QString &from, const QString &fileNam
 
 void MainWindow::onFileAccepted(const QString &fileId)
 {
-    // 发送方收到接收确认，开始传输 — UI已在发送时创建
     qDebug() << "File accepted, starting transfer:" << fileId;
 }
 
@@ -321,13 +339,18 @@ void MainWindow::onFileError(const QString &fileId, const QString &error)
     m_chatWidget->setFileError(fileId, error);
 }
 
+void MainWindow::onFileSizeExceeded(const QString &fileId, const QString &fileName, qint64 fileSize)
+{
+    Q_UNUSED(fileId)
+    Q_UNUSED(fileSize)
+    QMessageBox::warning(this, "文件过大",
+        QString("文件 \"%1\" 超过100MB传输限制，已自动拒绝。").arg(fileName));
+}
+
 void MainWindow::onFileAcceptFromUI(const QString &fileId)
 {
-    QString savePath = QFileDialog::getSaveFileName(this, "保存文件到",
-        QStandardPaths::writableLocation(QStandardPaths::DownloadLocation));
-    if (savePath.isEmpty()) return;
-
-    m_client->acceptFile(fileId, savePath);
+    // 不再弹出 QFileDialog，自动保存到 medchat_file/{uid}/file/ 目录
+    m_client->acceptFile(fileId);
 }
 
 void MainWindow::onFileRejectFromUI(const QString &fileId)
@@ -335,6 +358,50 @@ void MainWindow::onFileRejectFromUI(const QString &fileId)
     m_client->rejectFile(fileId);
     m_pendingFileOffers.remove(fileId);
 }
+
+// ============================================================
+// 持久化辅助方法
+// ============================================================
+
+void MainWindow::persistTextMessage(const QString &contactUid, const QString &content,
+                                     qint64 timestamp, bool isMine)
+{
+    StoredMessage msg;
+    msg.contactUid = contactUid;
+    msg.type = 0; // 文本
+    msg.content = content;
+    msg.timestamp = timestamp;
+    msg.isMine = isMine;
+    LocalDB::instance().insertMessage(msg);
+}
+
+void MainWindow::persistFileMessage(const QString &contactUid, const QString &fileName,
+                                     const QString &fileId, qint64 timestamp, bool isMine)
+{
+    StoredMessage msg;
+    msg.contactUid = contactUid;
+    msg.type = 1; // 文件
+    msg.content = fileName;
+    msg.fileId = fileId;
+    msg.timestamp = timestamp;
+    msg.isMine = isMine;
+    LocalDB::instance().insertMessage(msg);
+}
+
+void MainWindow::updateSession(const QString &contactUid, const QString &preview, qint64 timestamp)
+{
+    SessionInfo si;
+    si.contactUid = contactUid;
+    si.username = contactUid;
+    si.lastMsgPreview = preview;
+    si.lastTime = timestamp;
+    si.unreadCount = 0;
+    LocalDB::instance().upsertSession(si);
+}
+
+// ============================================================
+// 系统事件
+// ============================================================
 
 void MainWindow::onServerError(const QString &error)
 {
@@ -352,57 +419,8 @@ void MainWindow::showMessage(const QString &title, const QString &text)
     QMessageBox::information(this, title, text);
 }
 
-void MainWindow::saveCurrentHistory()
-{
-    QString partner = m_chatWidget->currentPartner();
-    if (partner.isEmpty()) return;
-    QList<HistoryMessage> messages = m_chatWidget->getMessages();
-    if (!messages.isEmpty())
-        m_history->saveHistory(m_username, partner, messages);
-    // 当前联系人的缓冲区消息已全部显示在视图中并保存到磁盘，清空缓冲区
-    m_msgBuffers.remove(partner);
-}
-
-void MainWindow::flushBufferToUI(const QString &partner)
-{
-    QList<MsgBufEntry> &buffer = m_msgBuffers[partner];
-    if (buffer.isEmpty()) return;
-
-    for (const MsgBufEntry &e : buffer) {
-        QString sender = displayName(e.sender);
-        if (e.type == 0) {
-            m_chatWidget->addTextMessage(sender, e.text, e.timestamp, e.isMine);
-        } else {
-            m_chatWidget->addFileMessage(sender, e.fileName, e.fileSize, e.fileId, e.isMine);
-        }
-    }
-    buffer.clear();
-}
-
-void MainWindow::saveAllBuffers()
-{
-    for (auto it = m_msgBuffers.begin(); it != m_msgBuffers.end(); ++it) {
-        if (it.value().isEmpty()) continue;
-        QList<HistoryMessage> messages;
-        for (const MsgBufEntry &e : it.value()) {
-            HistoryMessage hm;
-            hm.type = e.type;
-            hm.sender = e.sender;
-            hm.text = e.text;
-            hm.timestamp = e.timestamp;
-            hm.isMine = e.isMine;
-            hm.fileName = e.fileName;
-            hm.fileSize = e.fileSize;
-            messages.append(hm);
-        }
-        m_history->saveHistory(m_username, it.key(), messages);
-    }
-    m_msgBuffers.clear();
-}
-
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    saveCurrentHistory();
-    saveAllBuffers();
+    // 消息已增量持久化到 SQLite，无需批量保存
     event->accept();
 }

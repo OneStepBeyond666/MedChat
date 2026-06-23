@@ -23,8 +23,15 @@ constexpr qint64 AVATAR_MAX_SIZE    = 2097152;   // 头像上传限制 2 MB
 constexpr int AVATAR_DISPLAY_SIZE   = 200;       // 头像显示标准像素
 
 // --- 存储 ---
-const QString DB_FOLDER_NAME        = QStringLiteral("medchat_data"); // 数据库文件夹名
-const QString HISTORY_FOLDER_NAME   = QStringLiteral("history");      // 聊天历史文件夹名
+const QString DB_FOLDER_NAME        = QStringLiteral("medchat_data"); // 服务端数据库文件夹名
+
+// --- 客户端本地存储 ---
+const QString FILE_ROOT_NAME        = QStringLiteral("medchat_file"); // 客户端文件根目录
+const QString MSG_SUBDIR            = QStringLiteral("msg");          // 消息数据库子目录
+const QString FILE_SUBDIR           = QStringLiteral("file");         // 文件存储子目录
+const QString TEMP_SUBDIR           = QStringLiteral("temp");         // 临时文件子目录
+const QString META_DB_NAME          = QStringLiteral("meta.db");      // 索引库
+const QString MSG_DB_NAME           = QStringLiteral("messages.db");  // 消息库
 
 } // namespace Constants
 
