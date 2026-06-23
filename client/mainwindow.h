@@ -46,6 +46,9 @@ private slots:
     void onFileAcceptFromUI(const QString &fileId);
     void onFileRejectFromUI(const QString &fileId);
     void onServerError(const QString &error);
+    void onStrangerError(const QString &text);
+    void onOfflineSyncDone();
+    void onFriendRequestReceived(const QString &from, const QString &text);
     void onDisconnected();
 
 private:

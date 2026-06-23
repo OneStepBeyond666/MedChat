@@ -197,6 +197,9 @@ void ChatClient::processMessage(const QJsonObject &msg)
     else if (type == MsgType::FileData)     handleFileData(msg);
     else if (type == MsgType::FileEnd)      handleFileEnd(msg);
     else if (type == MsgType::Error)        handleError(msg);
+    else if (type == MsgType::OfflineSync)  handleOfflineSync(msg);
+    else if (type == MsgType::ErrorStranger) handleStrangerError(msg);
+    else if (type == MsgType::FriendRequest) handleFriendRequest(msg);
     else
         qWarning() << "[Client] Unknown message type:" << type;
 }
@@ -429,6 +432,30 @@ void ChatClient::handleError(const QJsonObject &msg)
 {
     QString text = msg["text"].toString();
     emit serverError(text);
+}
+
+void ChatClient::handleOfflineSync(const QJsonObject &msg)
+{
+    bool done = msg["done"].toBool();
+    if (done) {
+        qDebug() << "[Client] 离线消息同步完成";
+        emit offlineSyncDone();
+    }
+}
+
+void ChatClient::handleStrangerError(const QJsonObject &msg)
+{
+    QString text = msg["text"].toString();
+    qDebug() << "[Client] 陌生人拦截:" << text;
+    emit strangerError(text);
+}
+
+void ChatClient::handleFriendRequest(const QJsonObject &msg)
+{
+    QString from = msg["from"].toString();
+    QString text = msg["text"].toString();
+    qDebug() << "[Client] 收到好友请求:" << from;
+    emit friendRequestReceived(from, text);
 }
 
 void ChatClient::sendJson(const QJsonObject &obj)

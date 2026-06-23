@@ -50,6 +50,9 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_client, &ChatClient::fileSendInitiated, this, &MainWindow::onFileSendInitiated);
     connect(m_client, &ChatClient::fileSendCompleted, this, &MainWindow::onFileSendCompleted);
     connect(m_client, &ChatClient::serverError, this, &MainWindow::onServerError);
+    connect(m_client, &ChatClient::strangerError, this, &MainWindow::onStrangerError);
+    connect(m_client, &ChatClient::offlineSyncDone, this, &MainWindow::onOfflineSyncDone);
+    connect(m_client, &ChatClient::friendRequestReceived, this, &MainWindow::onFriendRequestReceived);
     connect(m_client, &ChatClient::disconnected, this, &MainWindow::onDisconnected);
 
     connect(m_contactList, &ContactListWidget::contactSelected, this, &MainWindow::onContactSelected);
@@ -506,6 +509,26 @@ void MainWindow::updateSession(const QString &contactUid, const QString &preview
 void MainWindow::onServerError(const QString &error)
 {
     statusBar()->showMessage("服务器错误: " + error, 5000);
+}
+
+void MainWindow::onStrangerError(const QString &text)
+{
+    // 陌生人拦截提示：状态栏 + 弹窗
+    statusBar()->showMessage(text, 5000);
+    QMessageBox::warning(this, "发送失败", text);
+}
+
+void MainWindow::onOfflineSyncDone()
+{
+    statusBar()->showMessage("离线消息同步完成", 3000);
+}
+
+void MainWindow::onFriendRequestReceived(const QString &from, const QString &text)
+{
+    // 好友请求：弹出提示
+    QString display = displayName(from);
+    QMessageBox::information(this, "好友请求",
+                             display + " 请求添加您为好友:\n" + text);
 }
 
 void MainWindow::onDisconnected()

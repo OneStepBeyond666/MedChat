@@ -5,6 +5,11 @@
 #include <QSqlError>
 #include <QDebug>
 #include <QUuid>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+#include <QDateTime>
 
 ServerDB::ServerDB(const QString &dbDir, QObject *parent)
     : QObject(parent)
@@ -170,7 +175,7 @@ bool ServerDB::saveOfflineMessage(int senderUid, int receiverUid, const QString 
     q.bindValue(":receiver", receiverUid);
     q.bindValue(":payload", payload);
     q.bindValue(":type", type);
-    q.bindValue(":timestamp", QDateTime::currentSecsSinceEpoch());
+    q.bindValue(":timestamp", QDateTime::currentDateTime().toSecsSinceEpoch());
 
     if (!q.exec()) {
         qWarning() << "[ServerDB] 保存离线消息失败:" << q.lastError().text();
