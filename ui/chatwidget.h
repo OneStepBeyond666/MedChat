@@ -48,6 +48,7 @@ public:
     void setFileError(const QString &fileId, const QString &error);
 
     void loadHistoryMessages(const QVector<StoredMessage> &messages,
+                             const QString &partnerNick,
                              std::function<bool(const QString&)> transferActiveCheck = nullptr);
 
 signals:

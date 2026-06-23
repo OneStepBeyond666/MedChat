@@ -55,7 +55,7 @@ private:
     void setupUI();
     void applyStyles();
     void showMessage(const QString &title, const QString &text);
-    void loadMessagesFromDB(const QString &contactUid);
+    void loadMessagesFromDB(const QString &contactUid, const QString &partnerNick);
     void persistTextMessage(const QString &contactUid, const QString &content,
                             qint64 timestamp, bool isMine);
     void persistFileMessage(const QString &contactUid, const QString &fileName,

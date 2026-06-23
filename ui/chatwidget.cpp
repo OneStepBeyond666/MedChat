@@ -289,6 +289,7 @@ void ChatWidget::onFileOpenClicked()
 }
 
 void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
+                                     const QString &partnerNick,
                                      std::function<bool(const QString&)> transferActiveCheck)
 {
     for (const StoredMessage &sm : messages) {
@@ -296,7 +297,7 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
             // 文本消息 — 直接添加（不重复入库）
             ChatMessage msg;
             msg.type = ChatMessage::Text;
-            msg.sender = sm.isMine ? "me" : sm.contactUid;
+            msg.sender = sm.isMine ? "me" : partnerNick;
             msg.text = sm.content;
             msg.timestamp = sm.timestamp;
             msg.isMine = sm.isMine;
@@ -310,7 +311,7 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
             // 文件消息 — 查询 file_index 获取实际状态
             ChatMessage msg;
             msg.type = ChatMessage::File;
-            msg.sender = sm.isMine ? "me" : sm.contactUid;
+            msg.sender = sm.isMine ? "me" : partnerNick;
             msg.fileName = sm.content;
             msg.fileId = sm.fileId;
             msg.timestamp = sm.timestamp;

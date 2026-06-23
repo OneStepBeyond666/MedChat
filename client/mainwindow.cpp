@@ -157,7 +157,7 @@ void MainWindow::onContactSelected(const QString &username)
 
     if (username == QString::fromUtf8(MsgType::FileHelper)) {
         m_chatWidget->setChatPartner(username, "helper", QString::fromUtf8(MsgType::FileHelper));
-        loadMessagesFromDB(username);
+        loadMessagesFromDB(username, "me");  // 文件传输助手双侧都显示 "me"
         return;
     }
 
@@ -167,18 +167,18 @@ void MainWindow::onContactSelected(const QString &username)
     if (nick.isEmpty()) nick = username;
     m_chatWidget->setChatPartner(username, role, nick);
 
-    // 从 SQLite 加载历史消息
-    loadMessagesFromDB(username);
+    // 从 SQLite 加载历史消息（对方显示 nickname）
+    loadMessagesFromDB(username, nick);
 
     // 清除未读
     LocalDB::instance().clearUnread(username);
 }
 
-void MainWindow::loadMessagesFromDB(const QString &contactUid)
+void MainWindow::loadMessagesFromDB(const QString &contactUid, const QString &partnerNick)
 {
     QVector<StoredMessage> messages = LocalDB::instance().loadMessages(contactUid);
     if (!messages.isEmpty())
-        m_chatWidget->loadHistoryMessages(messages,
+        m_chatWidget->loadHistoryMessages(messages, partnerNick,
             [this](const QString &fid) {
                 return m_client->isTransferActive(fid)
                     || m_userAcceptedFiles.contains(fid);
@@ -226,8 +226,8 @@ void MainWindow::onSendTextMessage(const QString &to, const QString &text)
     // 文件传输助手：本地回环，不经过服务端
     if (to == QString::fromUtf8(MsgType::FileHelper)) {
         QString helperUid = QString::fromUtf8(MsgType::FileHelper);
-        m_chatWidget->addTextMessage(m_nickname, text, now, true);
-        m_chatWidget->addTextMessage(m_nickname, text, now, false);
+        m_chatWidget->addTextMessage("me", text, now, true);
+        m_chatWidget->addTextMessage("me", text, now, false);
         persistTextMessage(helperUid, text, now, true);
         persistTextMessage(helperUid, text, now, false);
         updateSession(helperUid, text.left(50), now);
@@ -240,8 +240,8 @@ void MainWindow::onSendTextMessage(const QString &to, const QString &text)
     persistTextMessage(to, text, now, true);
     updateSession(to, text.left(50), now);
 
-    // 立即在UI显示自己发送的消息
-    m_chatWidget->addTextMessage(m_nickname, text, now, true);
+    // 立即在UI显示自己发送的消息（统一显示"me"）
+    m_chatWidget->addTextMessage("me", text, now, true);
 }
 
 // ============================================================
@@ -297,12 +297,12 @@ void MainWindow::onSendFileRequest(const QString &to)
         LocalDB::instance().insertFileRecord(recvRec);
 
         // 显示发送卡片 + 持久化
-        m_chatWidget->addFileMessage(m_nickname, fi.fileName(), fi.size(), sendId, true);
+        m_chatWidget->addFileMessage("me", fi.fileName(), fi.size(), sendId, true);
         m_chatWidget->setFileCompleted(sendId);
         persistFileMessage(helperUid, fi.fileName(), sendId, now, true);
 
         // 显示接收卡片 + 持久化
-        m_chatWidget->addFileMessage(m_nickname, fi.fileName(), fi.size(), recvId, false);
+        m_chatWidget->addFileMessage("me", fi.fileName(), fi.size(), recvId, false);
         m_chatWidget->setFileCompleted(recvId);
         persistFileMessage(helperUid, fi.fileName(), recvId, now, false);
 
@@ -321,8 +321,8 @@ void MainWindow::onFileSendInitiated(const QString &to, const QString &fileName,
                                       qint64 fileSize, const QString &fileId)
 {
     Q_UNUSED(to)
-    // 用真实 fileId 创建文件卡片
-    m_chatWidget->addFileMessage(m_nickname, fileName, fileSize, fileId, true);
+    // 用真实 fileId 创建文件卡片（统一显示"me"）
+    m_chatWidget->addFileMessage("me", fileName, fileSize, fileId, true);
 
     qint64 now = QDateTime::currentMSecsSinceEpoch();
 
