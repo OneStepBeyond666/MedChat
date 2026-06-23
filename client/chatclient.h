@@ -51,6 +51,7 @@ public:
     QString myRole() const { return m_role; }
     QString myNickname() const { return m_myNickname; }
     QMap<QString, ContactInfo> contacts() const { return m_contacts; }
+    bool isTransferActive(const QString &fileId) const;
 
 signals:
     void connected();

@@ -7,6 +7,7 @@
 #include <QString>
 #include <QCloseEvent>
 #include <QStackedWidget>
+#include <QSet>
 
 class ChatClient;
 class ContactListWidget;
@@ -72,6 +73,9 @@ private:
     // 待显示的文件发送卡片: fileId -> to (发送文件后等待信号关联)
     QString m_pendingSendFileTo;
     QString m_pendingSendFilePath;  // 发送方原始文件路径，用于复制到本地存档
+
+    // 本次会话中用户已点击接收的文件 ID（用于 stale 检测）
+    QSet<QString> m_userAcceptedFiles;
 };
 
 #endif // MAINWINDOW_H

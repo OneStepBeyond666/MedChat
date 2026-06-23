@@ -108,6 +108,14 @@ void ChatClient::sendFile(const QString &to, const QString &filePath)
     emit fileSendInitiated(to, fi.fileName(), fi.size(), fileId);
 }
 
+bool ChatClient::isTransferActive(const QString &fileId) const
+{
+    auto it = m_fileTransfers.constFind(fileId);
+    if (it == m_fileTransfers.constEnd())
+        return false;
+    return it->file != nullptr; // acceptFile() 后才非空
+}
+
 void ChatClient::acceptFile(const QString &fileId)
 {
     auto it = m_fileTransfers.find(fileId);

@@ -173,7 +173,11 @@ void MainWindow::loadMessagesFromDB(const QString &contactUid)
 {
     QVector<StoredMessage> messages = LocalDB::instance().loadMessages(contactUid);
     if (!messages.isEmpty())
-        m_chatWidget->loadHistoryMessages(messages);
+        m_chatWidget->loadHistoryMessages(messages,
+            [this](const QString &fid) {
+                return m_client->isTransferActive(fid)
+                    || m_userAcceptedFiles.contains(fid);
+            });
 }
 
 // ============================================================
@@ -392,6 +396,7 @@ void MainWindow::onFileSizeExceeded(const QString &fileId, const QString &fileNa
 void MainWindow::onFileAcceptFromUI(const QString &fileId)
 {
     // 不再弹出 QFileDialog，自动保存到 medchat_file/{uid}/file/ 目录
+    m_userAcceptedFiles.insert(fileId);
     m_client->acceptFile(fileId);
 }
 
@@ -399,6 +404,7 @@ void MainWindow::onFileRejectFromUI(const QString &fileId)
 {
     m_client->rejectFile(fileId);
     m_pendingFileOffers.remove(fileId);
+    LocalDB::instance().updateFileRecord(fileId, 2); // 标记为已拒绝/失败
 }
 
 // ============================================================

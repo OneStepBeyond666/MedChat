@@ -1,6 +1,7 @@
 #include "chatwidget.h"
 #include "messagebubble.h"
 #include "client/localdb.h"
+#include "client/chatclient.h"
 #include <QHBoxLayout>
 #include <QScrollBar>
 #include <QDateTime>
@@ -287,7 +288,8 @@ void ChatWidget::onFileOpenClicked()
     }
 }
 
-void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages)
+void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
+                                     std::function<bool(const QString&)> transferActiveCheck)
 {
     for (const StoredMessage &sm : messages) {
         if (sm.type == 0) {
@@ -324,6 +326,10 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages)
                 sm.content, fsize, sm.isMine,
                 msg.sender, formatTime(sm.timestamp));
             fcard->fileId = sm.fileId;
+
+            // 连接全部信号（包括 accept/reject，之前漏掉了）
+            connect(fcard, &FileMessageCard::acceptClicked, this, &ChatWidget::onFileAcceptClicked);
+            connect(fcard, &FileMessageCard::rejectClicked, this, &ChatWidget::onFileRejectClicked);
             connect(fcard, &FileMessageCard::openClicked, this, &ChatWidget::onFileOpenClicked);
 
             if (rec.status == 1) {
@@ -331,8 +337,18 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages)
             } else if (rec.status == 2) {
                 fcard->setState(FileMessageCard::Error, "传输失败");
             } else {
-                // status=0: 文件 offer 已收到，尚未接收完成 → 显示等待接收状态
-                fcard->setState(FileMessageCard::Pending);
+                // status=0: 需要区分「尚未接收」「正在传输」「stale 中断」
+                bool active = transferActiveCheck && transferActiveCheck(sm.fileId);
+                if (active) {
+                    // 传输正在进行中 → 显示传输中（无按钮，等待 progress 信号更新）
+                    fcard->setState(FileMessageCard::Transferring);
+                } else if (!sm.isMine && rec.savePath.isEmpty()) {
+                    // 接收方，尚未 accept（无 savePath）→ 显示等待接收（带按钮）
+                    fcard->setState(FileMessageCard::Pending);
+                } else {
+                    // stale: 已 accept 但传输中断，或发送方异常 → 错误
+                    fcard->setState(FileMessageCard::Error, "传输中断");
+                }
             }
 
             m_fileCards[sm.fileId] = fcard;

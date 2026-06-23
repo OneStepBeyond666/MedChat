@@ -10,6 +10,7 @@
 #include <QMap>
 #include <QList>
 #include <QDateTime>
+#include <functional>
 
 class MessageBubble;
 class FileMessageCard;
@@ -46,7 +47,8 @@ public:
     void setFileRejected(const QString &fileId, const QString &reason);
     void setFileError(const QString &fileId, const QString &error);
 
-    void loadHistoryMessages(const QVector<StoredMessage> &messages);
+    void loadHistoryMessages(const QVector<StoredMessage> &messages,
+                             std::function<bool(const QString&)> transferActiveCheck = nullptr);
 
 signals:
     void sendMessage(const QString &to, const QString &text);
