@@ -260,22 +260,24 @@ void MainWindow::onSendFileRequest(const QString &to)
         return;
     }
 
-    // 文件传输助手：本地复制文件，不走网络
+    // 文件传输助手：本地复制文件，不走网络，自动保存到 medchat_file 目录
     if (to == QString::fromUtf8(MsgType::FileHelper)) {
-        QString savePath = QFileDialog::getSaveFileName(this, "保存文件到",
-            QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + "/" + fi.fileName());
-        if (savePath.isEmpty()) return;
-
         qint64 now = QDateTime::currentMSecsSinceEpoch();
         QString helperUid = QString::fromUtf8(MsgType::FileHelper);
 
-        // 复制文件
+        // 与普通联系人一致：自动保存到 medchat_file/{uid}/file/{yyyy}/{MM}/
+        QString ym = QDate::currentDate().toString("yyyy/MM");
+        QString targetDir = LocalDB::instance().rootPath()
+                            + "/" + Constants::FILE_SUBDIR + "/" + ym;
+        QDir().mkpath(targetDir);
+        QString savePath = LocalDB::instance().generateUniqueFilePath(targetDir, fi.fileName());
+
         QFile::copy(filePath, savePath);
+        QFileInfo saveFi(savePath);
 
         // 生成唯一 fileId 并写入 file_index
         QString sendId = QUuid::createUuid().toString(QUuid::WithoutBraces);
         QString recvId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        QFileInfo saveFi(savePath);
 
         FileRecord sendRec;
         sendRec.fileId = sendId;
@@ -284,7 +286,7 @@ void MainWindow::onSendFileRequest(const QString &to)
         sendRec.savePath = savePath;
         sendRec.size = fi.size();
         sendRec.status = 1;
-        sendRec.yearMonth = QDate::currentDate().toString("yyyy/MM");
+        sendRec.yearMonth = ym;
         LocalDB::instance().insertFileRecord(sendRec);
 
         FileRecord recvRec = sendRec;
