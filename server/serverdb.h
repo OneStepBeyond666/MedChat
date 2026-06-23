@@ -21,6 +21,9 @@ public:
     /// 数据库文件路径
     QString databasePath() const { return m_dbPath; }
 
+    /// 好友关系查询：双方是否互为好友（双向 status=1）
+    bool areFriends(int uid1, int uid2);
+
 private:
     void initDatabase();
     void createTables();

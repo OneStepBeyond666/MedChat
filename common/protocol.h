@@ -27,8 +27,17 @@ namespace MsgType {
     constexpr const char* FileEnd      = "file_end";
     constexpr const char* FileReject   = "file_reject";
 
-    // 系统
+    // 系统和错误
     constexpr const char* Error        = "error";
+    constexpr const char* ErrorStranger = "error_stranger";
+
+    // 好友关系
+    constexpr const char* FriendRequest  = "friend_request";
+    constexpr const char* FriendResponse = "friend_response";
+    constexpr const char* SyncFriends    = "sync_friends";
+
+    // 离线同步
+    constexpr const char* OfflineSync    = "offline_sync";
 
     // 特殊联系人
     constexpr const char* FileHelper   = "\xe6\x96\x87\xe4\xbb\xb6\xe4\xbc\xa0\xe8\xbe\x93\xe5\x8a\xa9\xe6\x89\x8b";

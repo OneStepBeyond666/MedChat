@@ -115,6 +115,33 @@ QSqlDatabase ServerDB::database() const
     return QSqlDatabase::database(m_connName);
 }
 
+bool ServerDB::areFriends(int uid1, int uid2)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+
+    // 查询双向记录：uid1→uid2 和 uid2→uid1，只要至少一方 status=1 即视为好友
+    // 常规 IM 逻辑：A 加 B 为好友后，B 也有一条指向 A 的记录（status=1）
+    // 但如果业务上只要单向同意就算好友，用 OR 即可
+    q.prepare(
+        "SELECT COUNT(*) FROM friends "
+        "WHERE ((uid = :u1 AND friend_uid = :u2) OR (uid = :u2 AND friend_uid = :u1)) "
+        "AND status = 1"
+    );
+    q.bindValue(":u1", uid1);
+    q.bindValue(":u2", uid2);
+
+    if (q.exec() && q.next()) {
+        int count = q.value(0).toInt();
+        // 双向好友：期望 2 条记录（A→B 和 B→A 都是 status=1）
+        // 如果业务上只要求至少 1 方同意即可，改为 count >= 1
+        return count >= 1;
+    }
+
+    qWarning() << "[ServerDB] areFriends 查询失败:" << q.lastError().text();
+    return false;
+}
+
 QSqlDatabase ServerDB::cloneConnection(const QString &connName)
 {
     QSqlDatabase src = QSqlDatabase::database(m_connName);

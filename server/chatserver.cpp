@@ -195,24 +195,45 @@ void ChatServer::handleLogin(ClientHandler *handler, const QJsonObject &msg)
 
 void ChatServer::handleMessage(ClientHandler *handler, const QJsonObject &msg)
 {
+    QString from = handler->username();
     QString to = msg["to"].toString();
+
+    // 好友关系拦截：非好友不能发消息
+    int fromUid = m_userManager->getUidByUsername(from);
+    int toUid   = m_userManager->getUidByUsername(to);
+    if (fromUid <= 0 || toUid <= 0) {
+        qWarning() << "[消息拦截] 无法获取 uid:" << from << "->" << to;
+        QJsonObject err = Protocol::makeMsg(MsgType::ErrorStranger);
+        err["text"] = "对方开启了好友验证，您还不是他(她)的好友";
+        handler->sendMessage(err);
+        return;
+    }
+    if (!m_serverDB->areFriends(fromUid, toUid)) {
+        qDebug() << QString("[消息拦截] %1 -> %2 : 不是好友，拦截")
+                        .arg(from, to);
+        QJsonObject err = Protocol::makeMsg(MsgType::ErrorStranger);
+        err["text"] = "对方开启了好友验证，您还不是他(她)的好友";
+        handler->sendMessage(err);
+        return;
+    }
+
     QString text = msg["text"].toString();
     ClientHandler *target = findClient(to);
     if (!target) {
         qDebug() << QString("[消息失败] %1 -> %2 : 接收方不在线")
-                        .arg(handler->username(), to);
+                        .arg(from, to);
         handler->sendMessage(Protocol::makeError("用户 " + to + " 不在线"));
         return;
     }
     // 转发消息给接收方
     QJsonObject fwd = msg;
-    fwd["from"] = handler->username();
+    fwd["from"] = from;
     target->sendMessage(fwd);
 
     // 日志：显示消息内容
     QString preview = text.length() > 80 ? text.left(80) + "..." : text;
     qDebug() << QString("[消息] %1 -> %2 : %3")
-                    .arg(handler->username(), to, preview);
+                    .arg(from, to, preview);
 
     // 回传确认给发送方
     QJsonObject ack = Protocol::makeMsg("message_ack");
@@ -223,21 +244,42 @@ void ChatServer::handleMessage(ClientHandler *handler, const QJsonObject &msg)
 
 void ChatServer::handleFileOffer(ClientHandler *handler, const QJsonObject &msg)
 {
+    QString from = handler->username();
     QString to = msg["to"].toString();
     QString fileName = msg["file_name"].toString();
     qint64 fileSize = static_cast<qint64>(msg["file_size"].toDouble());
+
+    // 好友关系拦截：非好友不能发文件
+    int fromUid = m_userManager->getUidByUsername(from);
+    int toUid   = m_userManager->getUidByUsername(to);
+    if (fromUid <= 0 || toUid <= 0) {
+        qWarning() << "[文件拦截] 无法获取 uid:" << from << "->" << to;
+        QJsonObject err = Protocol::makeMsg(MsgType::ErrorStranger);
+        err["text"] = "对方开启了好友验证，您还不是他(她)的好友";
+        handler->sendMessage(err);
+        return;
+    }
+    if (!m_serverDB->areFriends(fromUid, toUid)) {
+        qDebug() << QString("[文件拦截] %1 -> %2 : 不是好友，拦截 (文件: %3)")
+                        .arg(from, to, fileName);
+        QJsonObject err = Protocol::makeMsg(MsgType::ErrorStranger);
+        err["text"] = "对方开启了好友验证，您还不是他(她)的好友";
+        handler->sendMessage(err);
+        return;
+    }
+
     ClientHandler *target = findClient(to);
     if (!target) {
         qDebug() << QString("[文件失败] %1 -> %2 : 接收方不在线 (文件: %3)")
-                        .arg(handler->username(), to, fileName);
+                        .arg(from, to, fileName);
         handler->sendMessage(Protocol::makeError("用户 " + to + " 不在线"));
         return;
     }
     QJsonObject fwd = msg;
-    fwd["from"] = handler->username();
+    fwd["from"] = from;
     target->sendMessage(fwd);
     qDebug() << QString("[文件传输] %1 -> %2 : %3 (%4 bytes)")
-                    .arg(handler->username(), to, fileName).arg(fileSize);
+                    .arg(from, to, fileName).arg(fileSize);
 }
 
 void ChatServer::handleFileAccept(ClientHandler *handler, const QJsonObject &msg)
