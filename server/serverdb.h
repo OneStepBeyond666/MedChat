@@ -27,8 +27,14 @@ public:
     /// 离线消息：保存离线消息
     bool saveOfflineMessage(int senderUid, int receiverUid, const QString &payload, int type = 0);
 
-    /// 离线消息：获取并清除用户的所有离线消息（事务保证原子性）
-    QJsonArray getAndClearOfflineMessages(int receiverUid);
+    /// 离线消息：获取待下发的消息（status <= 1，不删除）
+    QJsonArray getPendingOfflineMessages(int receiverUid);
+
+    /// 离线消息：将 pending (status=0) 标记为已发送 (status=1)
+    bool markOfflineMessagesAsSent(int receiverUid);
+
+    /// 离线消息：收到客户端 ACK 后删除已确认的消息（status=1，事务保证原子性）
+    bool deleteAckedOfflineMessages(int receiverUid);
 
 private:
     void initDatabase();

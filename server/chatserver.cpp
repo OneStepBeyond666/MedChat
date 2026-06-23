@@ -82,6 +82,8 @@ void ChatServer::onMessageReceived(ClientHandler *handler, const QJsonObject &ms
         handleFileEnd(handler, msg);
     } else if (type == MsgType::FileReject) {
         handleFileReject(handler, msg);
+    } else if (type == MsgType::OfflineSyncAck) {
+        handleOfflineSyncAck(handler, msg);
     } else {
         qWarning() << "[未知消息] 类型:" << type;
     }
@@ -185,10 +187,10 @@ void ChatServer::handleLogin(ClientHandler *handler, const QJsonObject &msg)
         }
         qDebug() << QString("[统计] 当前在线用户: %1 人").arg(onlineCount);
 
-        // 离线消息下发
+        // 离线消息下发（方案C：发→标记→等ACK→删）
         int uid = m_userManager->getUidByUsername(username);
         if (uid > 0) {
-            QJsonArray offlineMessages = m_serverDB->getAndClearOfflineMessages(uid);
+            QJsonArray offlineMessages = m_serverDB->getPendingOfflineMessages(uid);
             if (!offlineMessages.isEmpty()) {
                 qDebug() << QString("[离线消息] %1 有 %2 条离线消息，开始下发")
                                 .arg(username).arg(offlineMessages.size());
@@ -201,7 +203,10 @@ void ChatServer::handleLogin(ClientHandler *handler, const QJsonObject &msg)
                     }
                 }
                 
-                qDebug() << QString("[离线消息] %1 离线消息下发完成")
+                // 发送完毕后标记为 status=1（已发送，待ACK）
+                m_serverDB->markOfflineMessagesAsSent(uid);
+                
+                qDebug() << QString("[离线消息] %1 离线消息下发完成，等待ACK")
                                 .arg(username);
             }
         }
@@ -250,8 +255,11 @@ void ChatServer::handleMessage(ClientHandler *handler, const QJsonObject &msg)
         qDebug() << QString("[消息离线] %1 -> %2 : 接收方不在线，保存离线消息")
                         .arg(from, to);
         
-        // 将完整 JSON 帧存入数据库
-        QJsonDocument doc(msg);
+        // 将完整 JSON 帧存入数据库（加上 offline 标记供客户端去重）
+        QJsonObject fwdMsg = msg;
+        fwdMsg["from"] = from;
+        fwdMsg["offline"] = true;
+        QJsonDocument doc(fwdMsg);
         QString payload = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
         
         if (m_serverDB->saveOfflineMessage(fromUid, toUid, payload, 0)) {
@@ -426,4 +434,21 @@ ClientHandler* ChatServer::findClient(const QString &username) const
             return h;
     }
     return nullptr;
+}
+
+void ChatServer::handleOfflineSyncAck(ClientHandler *handler, const QJsonObject &msg)
+{
+    QString username = handler->username();
+    int uid = m_userManager->getUidByUsername(username);
+    if (uid <= 0) {
+        qWarning() << "[离线ACK] 无法获取 uid:" << username;
+        return;
+    }
+
+    // 收到客户端 ACK，删除 status=1 的记录
+    if (m_serverDB->deleteAckedOfflineMessages(uid)) {
+        qDebug() << QString("[离线ACK] %1 离线消息已确认并清除").arg(username);
+    } else {
+        qWarning() << "[离线ACK] 清除离线消息失败: uid=" << uid;
+    }
 }

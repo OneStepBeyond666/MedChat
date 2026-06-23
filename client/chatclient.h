@@ -101,6 +101,9 @@ private:
     void handleStrangerError(const QJsonObject &msg);
     void handleFriendRequest(const QJsonObject &msg);
 
+    /// 离线消息去重：检查本地 DB 是否已有同条消息
+    bool isDuplicateOfflineMessage(const QString &from, const QString &content, qint64 timestamp);
+
     void sendJson(const QJsonObject &obj);
     void continueSendingFile(const QString &fileId);
 

@@ -276,6 +276,15 @@ void ChatClient::handleMessage(const QJsonObject &msg)
     QString to = msg["to"].toString();
     QString text = msg["text"].toString();
     qint64 time = static_cast<qint64>(msg["time"].toDouble());
+
+    // 离线消息去重：如果本地 DB 已有同条消息则跳过
+    if (msg.contains("offline") && msg["offline"].toBool()) {
+        if (isDuplicateOfflineMessage(from, text, time)) {
+            qDebug() << "[Client] 离线消息去重跳过: from=" << from << "time=" << time;
+            return;
+        }
+    }
+
     emit textMessageReceived(from, to, text, time);
 }
 
@@ -438,7 +447,11 @@ void ChatClient::handleOfflineSync(const QJsonObject &msg)
 {
     bool done = msg["done"].toBool();
     if (done) {
-        qDebug() << "[Client] 离线消息同步完成";
+        qDebug() << "[Client] 离线消息同步完成，发送ACK";
+        // 回传 ACK 给服务端，触发删除 status=1 的离线消息
+        QJsonObject ackMsg = Protocol::makeMsg(MsgType::OfflineSyncAck);
+        ackMsg["count"] = msg["count"].toInt();  // 可选：携带消息数量供服务端校验
+        sendJson(ackMsg);
         emit offlineSyncDone();
     }
 }
@@ -454,8 +467,30 @@ void ChatClient::handleFriendRequest(const QJsonObject &msg)
 {
     QString from = msg["from"].toString();
     QString text = msg["text"].toString();
+    qint64 time = static_cast<qint64>(msg["time"].toDouble());
+
+    // 离线好友请求去重
+    if (msg.contains("offline") && msg["offline"].toBool()) {
+        if (isDuplicateOfflineMessage(from, text, time)) {
+            qDebug() << "[Client] 离线好友请求去重跳过: from=" << from;
+            return;
+        }
+    }
+
     qDebug() << "[Client] 收到好友请求:" << from;
     emit friendRequestReceived(from, text);
+}
+
+bool ChatClient::isDuplicateOfflineMessage(const QString &from, const QString &content, qint64 timestamp)
+{
+    // 查本地 DB：同联系人 + 同 timestamp + 同 content → 重复
+    QVector<StoredMessage> msgs = LocalDB::instance().loadMessages(from, 500);
+    for (const StoredMessage &m : msgs) {
+        if (m.timestamp == timestamp && m.content == content && !m.isMine) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void ChatClient::sendJson(const QJsonObject &obj)

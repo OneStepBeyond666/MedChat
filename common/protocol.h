@@ -38,6 +38,7 @@ namespace MsgType {
 
     // 离线同步
     constexpr const char* OfflineSync    = "offline_sync";
+    constexpr const char* OfflineSyncAck = "offline_sync_ack";
 
     // 特殊联系人
     constexpr const char* FileHelper   = "\xe6\x96\x87\xe4\xbb\xb6\xe4\xbc\xa0\xe8\xbe\x93\xe5\x8a\xa9\xe6\x89\x8b";
