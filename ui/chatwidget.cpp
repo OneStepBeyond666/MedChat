@@ -331,7 +331,8 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages)
             } else if (rec.status == 2) {
                 fcard->setState(FileMessageCard::Error, "传输失败");
             } else {
-                fcard->setState(FileMessageCard::Error, "未完成");
+                // status=0: 文件 offer 已收到，尚未接收完成 → 显示等待接收状态
+                fcard->setState(FileMessageCard::Pending);
             }
 
             m_fileCards[sm.fileId] = fcard;
