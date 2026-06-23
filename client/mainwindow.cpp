@@ -15,6 +15,8 @@
 #include <QApplication>
 #include <QDateTime>
 #include <QFileInfo>
+#include <QDir>
+#include <QFile>
 #include <QLabel>
 #include <QDebug>
 
@@ -269,8 +271,9 @@ void MainWindow::onSendFileRequest(const QString &to)
         return;
     }
 
-    // 记录待发送目标，等待 fileSendInitiated 信号获取真实 fileId
+    // 记录待发送目标和文件路径，等待 fileSendInitiated 信号获取真实 fileId
     m_pendingSendFileTo = to;
+    m_pendingSendFilePath = filePath;
     m_client->sendFile(to, filePath);
 }
 
@@ -281,11 +284,42 @@ void MainWindow::onFileSendInitiated(const QString &to, const QString &fileName,
     // 用真实 fileId 创建文件卡片
     m_chatWidget->addFileMessage(m_nickname, fileName, fileSize, fileId, true);
 
-    // 持久化文件消息到 SQLite
     qint64 now = QDateTime::currentMSecsSinceEpoch();
+
+    // 模仿微信：发送方也在本地保存一份文件副本
+    QString savedPath;
+    if (!m_pendingSendFilePath.isEmpty() && QFile::exists(m_pendingSendFilePath)) {
+        QDate today = QDate::currentDate();
+        QString ym = QString("%1/%2").arg(today.year()).arg(today.month(), 2, 10, QChar('0'));
+        QString targetDir = LocalDB::instance().rootPath()
+                            + "/" + Constants::FILE_SUBDIR + "/" + ym;
+        QDir().mkpath(targetDir);
+
+        QString destPath = LocalDB::instance().generateUniqueFilePath(targetDir, fileName);
+        if (QFile::copy(m_pendingSendFilePath, destPath)) {
+            savedPath = destPath;
+        } else {
+            qWarning() << "Failed to copy sent file to local archive:" << destPath;
+        }
+    }
+
+    // 写入 file_index 记录（发送方，status=1 已完成）
+    FileRecord rec;
+    rec.fileId = fileId;
+    rec.originalName = fileName;
+    rec.size = fileSize;
+    rec.status = savedPath.isEmpty() ? 2 : 1; // 复制失败则标记失败
+    rec.savePath = savedPath;
+    QFileInfo fi(savedPath);
+    rec.saveName = fi.fileName();
+    rec.yearMonth = QDate::currentDate().toString("yyyy/MM");
+    LocalDB::instance().insertFileRecord(rec);
+
+    // 持久化文件消息到 SQLite
     persistFileMessage(m_pendingSendFileTo, fileName, fileId, now, true);
     updateSession(m_pendingSendFileTo, "[文件] " + fileName, now);
     m_pendingSendFileTo.clear();
+    m_pendingSendFilePath.clear();
 }
 
 // ============================================================
@@ -296,6 +330,14 @@ void MainWindow::onFileOfferReceived(const QString &from, const QString &fileNam
                                       qint64 fileSize, const QString &fileId)
 {
     m_pendingFileOffers[fileId] = from;
+
+    // 预写 file_index 记录（status=0 待接收），避免切换对话时 loadHistory 找不到记录
+    FileRecord rec;
+    rec.fileId = fileId;
+    rec.originalName = fileName;
+    rec.size = fileSize;
+    rec.status = 0; // pending — acceptFile() 后会更新
+    LocalDB::instance().insertFileRecord(rec);
 
     // 持久化文件消息到 SQLite
     qint64 now = QDateTime::currentMSecsSinceEpoch();
