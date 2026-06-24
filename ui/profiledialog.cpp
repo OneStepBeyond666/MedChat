@@ -293,14 +293,14 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     passLayout->addWidget(passLabel);
     passLayout->addStretch();
     QLabel *passArrow = new QLabel("›");
-    passArrow->setStyleSheet("font-size: 18px; color: #bbb;");
+    passArrow->setStyleSheet("font-size: 18px; color: #ccc;");
     passLayout->addWidget(passArrow);
 
     // 通过样式 + 属性实现悬停效果
     passItem->setObjectName("passItem");
     passItem->setStyleSheet(
         "#passItem { background-color: white; }"
-        "#passItem:hover { background-color: #f9f9f9; }"
+        "#passItem:hover { background-color: #f5f5f5; }"
     );
 
     // 用透明按钮覆盖整个区域接收点击
@@ -439,8 +439,9 @@ void ProfileDialog::applyStyles()
         "QComboBox { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QComboBox:focus { border-bottom: 1px solid #07c160; }"
         "QComboBox::drop-down { border: none; width: 20px; }"
-        "QComboBox::down-arrow { width: 0; height: 0; border-left: 5px solid transparent; "
-        "  border-right: 5px solid transparent; border-top: 6px solid #999999; }"
+        "QComboBox::down-arrow { image: url(data:image/png;base64,"
+        "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAGCAYAAAD68A/GAAAAJ0lEQVR4nGNgQANpaWn/QRhdHKsivIrRFWFV"
+        "hE8RimJCiuCKiVUIAHU1V6mQ3i1NAAAAAElFTkSuQmCC); }"
 
         // 下拉框 — 弹出列表（关键：强制白色背景）
         "QComboBox QAbstractItemView { background-color: #ffffff; border: 1px solid #e0e0e0; "
@@ -453,8 +454,9 @@ void ProfileDialog::applyStyles()
         "QDateEdit { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QDateEdit:focus { border-bottom: 1px solid #07c160; }"
         "QDateEdit::drop-down { border: none; width: 20px; }"
-        "QDateEdit::down-arrow { width: 0; height: 0; border-left: 5px solid transparent; "
-        "  border-right: 5px solid transparent; border-top: 6px solid #999999; }"
+        "QDateEdit::down-arrow { image: url(data:image/png;base64,"
+        "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAGCAYAAAD68A/GAAAAJ0lEQVR4nGNgQANpaWn/QRhdHKsivIrRFWFV"
+        "hE8RimJCiuCKiVUIAHU1V6mQ3i1NAAAAAElFTkSuQmCC); }"
 
         // 日历弹窗（关键：强制白色主题）
         "QCalendarWidget { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 4px; }"
