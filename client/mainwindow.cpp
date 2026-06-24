@@ -21,7 +21,6 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QFile>
-#include <QLabel>
 #include <QUuid>
 #include <QDebug>
 
@@ -122,12 +121,6 @@ void MainWindow::setupUI()
     // Page 0: 占位页（未选择联系人时显示）
     QWidget *placeholder = new QWidget;
     placeholder->setObjectName("chatPlaceholder");
-    QVBoxLayout *phLayout = new QVBoxLayout(placeholder);
-    phLayout->setAlignment(Qt::AlignCenter);
-    QLabel *phLabel = new QLabel("请选择联系人开始对话");
-    phLabel->setObjectName("placeholderLabel");
-    phLabel->setAlignment(Qt::AlignCenter);
-    phLayout->addWidget(phLabel);
     m_chatStack->addWidget(placeholder);
 
     // Page 1: 聊天页
@@ -154,7 +147,6 @@ void MainWindow::applyStyles()
         "QSplitter::handle { background: #ddd; }"
         "QStatusBar { background: #f5f5f5; font-size: 12px; color: #666; }"
         "#chatPlaceholder { background: #fafafa; }"
-        "#placeholderLabel { font-size: 18px; color: #aaa; }"
     );
 }
 
@@ -719,6 +711,12 @@ void MainWindow::onFriendRequestReceived(int requestId, const QString &from, con
 
 void MainWindow::onFriendRequestEntryClicked()
 {
+    // 再次点击 → 取消选中，回到占位页
+    if (m_chatStack->currentIndex() == 2) {
+        m_chatStack->setCurrentIndex(0);
+        m_sidebar->clearSelection();
+        return;
+    }
     // 切换到好友请求页面
     m_chatStack->setCurrentIndex(2);
     loadFriendRequests();

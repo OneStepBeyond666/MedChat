@@ -212,6 +212,25 @@ bool ServerDB::addFriendship(int uid1, int uid2)
     return true;
 }
 
+QList<int> ServerDB::getFriendUids(int uid)
+{
+    QList<int> result;
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+    q.prepare(
+        "SELECT friend_uid FROM friends WHERE uid = :uid AND status = 1"
+    );
+    q.bindValue(":uid", uid);
+    if (q.exec()) {
+        while (q.next()) {
+            result.append(q.value(0).toInt());
+        }
+    } else {
+        qWarning() << "[ServerDB] getFriendUids 查询失败:" << q.lastError().text();
+    }
+    return result;
+}
+
 QSqlDatabase ServerDB::cloneConnection(const QString &connName)
 {
     QSqlDatabase src = QSqlDatabase::database(m_connName);

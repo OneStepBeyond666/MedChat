@@ -27,6 +27,9 @@ public:
     /// 添加好友关系：插入双向 status=1 记录，返回是否成功
     bool addFriendship(int uid1, int uid2);
 
+    /// 获取某用户所有已接受的好友 UID 列表（status=1）
+    QList<int> getFriendUids(int uid);
+
     /// 离线消息：保存离线消息
     bool saveOfflineMessage(int senderUid, int receiverUid, const QString &payload, int type = 0);
 

@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QJsonArray>
 #include <QDateTime>
+#include <QSet>
 
 ChatServer::ChatServer(quint16 port, QObject *parent)
     : QObject(parent), m_port(port)
@@ -424,18 +425,31 @@ void ChatServer::broadcastOnlineStatus()
 void ChatServer::sendContactList(ClientHandler *handler)
 {
     QJsonArray users;
+    int myUid = m_userManager->getUidByUsername(handler->username());
+
+    // 从数据库获取所有好友 UID（含在线和离线）
+    QList<int> friendUids = m_serverDB->getFriendUids(myUid);
+
+    // 构建在线用户快速查找表
+    QSet<QString> onlineNames;
     for (ClientHandler *h : m_clients) {
-        if (h != handler && !h->username().isEmpty()) {
-            UserInfo info = m_userManager->getUserInfoByName(h->username());
-            QJsonObject u;
-            u["username"] = h->username();
-            u["nickname"] = info.nickname;
-            u["role"] = h->role();
-            u["online"] = true;
-            if (!info.avatarBlob.isEmpty())
-                u["avatar_base64"] = QString::fromLatin1(info.avatarBlob.toBase64());
-            users.append(u);
-        }
+        if (!h->username().isEmpty())
+            onlineNames.insert(h->username());
+    }
+
+    for (int friendUid : friendUids) {
+        UserInfo info = m_userManager->getUserInfo(friendUid);
+        if (info.uid <= 0 || info.username.isEmpty())
+            continue;
+
+        QJsonObject u;
+        u["username"] = info.username;
+        u["nickname"] = info.nickname;
+        u["role"] = info.role;
+        u["online"] = onlineNames.contains(info.username);
+        if (!info.avatarBlob.isEmpty())
+            u["avatar_base64"] = QString::fromLatin1(info.avatarBlob.toBase64());
+        users.append(u);
     }
 
     QJsonObject listMsg = Protocol::makeMsg(MsgType::ContactList);
