@@ -190,16 +190,30 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     );
     updateAvatarDisplay();
 
+    // 悬停遮罩层：半透明黑色 + "更换头像" 文字
+    m_avatarHoverOverlay = new QLabel(m_avatarLabel);
+    m_avatarHoverOverlay->setFixedSize(100, 100);
+    m_avatarHoverOverlay->setAlignment(Qt::AlignCenter);
+    m_avatarHoverOverlay->setText("更换头像");
+    m_avatarHoverOverlay->setStyleSheet(
+        "background: rgba(0,0,0,0.45); color: white; font-size: 13px; "
+        "font-weight: bold; border-radius: 50px;"
+    );
+    m_avatarHoverOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_avatarHoverOverlay->hide();
+
     // 透明按钮覆盖头像
     QPushButton *avatarBtn = new QPushButton(avatarArea);
     avatarBtn->setFixedSize(100, 100);
     avatarBtn->setStyleSheet(
         "QPushButton { background: transparent; border: none; border-radius: 50px; }"
-        "QPushButton:hover { background: rgba(0,0,0,0.1); }"
     );
     avatarBtn->setCursor(Qt::PointingHandCursor);
     connect(avatarBtn, &QPushButton::clicked, this, &ProfileDialog::onAvatarClicked);
     avatarBtn->move(16, 16);
+    // 通过事件过滤器检测鼠标进入/离开头像按钮
+    avatarBtn->setProperty("avatarBtn", true);
+    avatarBtn->installEventFilter(this);
 
     avatarLayout->addWidget(m_avatarLabel);
     avatarLayout->addStretch();
@@ -519,19 +533,24 @@ void ProfileDialog::updateAvatarDisplay()
 void ProfileDialog::onAvatarClicked()
 {
     QPixmap cropped = AvatarCropper::selectAndCrop(this, Constants::AVATAR_DISPLAY_SIZE);
-    if (cropped.isNull())
+    if (cropped.isNull()) {
+        if (m_avatarHoverOverlay) m_avatarHoverOverlay->hide();
         return;
+    }
 
     QByteArray pngBytes = AvatarCropper::toPngBytes(cropped);
     if (pngBytes.size() > Constants::AVATAR_MAX_SIZE) {
         QMessageBox::warning(this, "头像过大",
             "头像文件不能超过 2MB，请选择更小的图片或裁剪后再试。");
+        if (m_avatarHoverOverlay) m_avatarHoverOverlay->hide();
         return;
     }
 
     m_newAvatarData = pngBytes;
     m_avatarChanged = true;
     updateAvatarDisplay();
+    if (m_avatarHoverOverlay)
+        m_avatarHoverOverlay->hide();
 }
 
 void ProfileDialog::onNickTextChanged(const QString &text)
@@ -614,10 +633,41 @@ bool ProfileDialog::eventFilter(QObject *obj, QEvent *event)
     // 当用户点击 QDateEdit 弹出日历时，日历控件是延迟创建的，
     // 此时再强制设置其 Palette，确保不会被系统深色模式覆盖
     if (obj == m_birthdayEdit && event->type() == QEvent::MouseButtonPress) {
-        // 先让 Qt 创建/显示日历弹窗
         QMetaObject::invokeMethod(this, [this]() {
             forceCalendarLightPalette();
         }, Qt::QueuedConnection);
     }
+    // 头像按钮：鼠标进入显示遮罩，离开隐藏
+    if (obj->property("avatarBtn").toBool()) {
+        if (event->type() == QEvent::Enter && m_avatarHoverOverlay) {
+            m_avatarHoverOverlay->show();
+            m_avatarHoverOverlay->raise();
+        } else if (event->type() == QEvent::Leave && m_avatarHoverOverlay) {
+            m_avatarHoverOverlay->hide();
+        }
+    }
     return QDialog::eventFilter(obj, event);
+}
+
+void ProfileDialog::enterEvent(QEvent *event)
+{
+    // 检测鼠标是否在头像按钮区域内
+    if (m_mode == SelfProfile) {
+        QPoint globalPos = QCursor::pos();
+        QPoint btnTopLeft = m_avatarLabel->mapToGlobal(QPoint(0, 0));
+        QRect btnRect(btnTopLeft, m_avatarLabel->size());
+        if (btnRect.contains(globalPos) && m_avatarHoverOverlay) {
+            m_avatarHoverOverlay->show();
+            m_avatarHoverOverlay->raise();
+        }
+    }
+    QDialog::enterEvent(event);
+}
+
+void ProfileDialog::leaveEvent(QEvent *event)
+{
+    // 鼠标离开对话框时隐藏遮罩
+    if (m_avatarHoverOverlay)
+        m_avatarHoverOverlay->hide();
+    QDialog::leaveEvent(event);
 }
