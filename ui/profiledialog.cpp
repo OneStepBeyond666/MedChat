@@ -236,7 +236,11 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     m_genderCombo->addItem("男", 1);
     m_genderCombo->addItem("女", 2);
     m_genderCombo->setCurrentIndex(m_gender);
-    m_genderCombo->setStyleSheet("border: none; font-size: 14px; background: transparent;");
+    m_genderCombo->setStyleSheet(
+        "QComboBox { border: none; font-size: 14px; background: transparent; }"
+        "QComboBox::drop-down { border: none; width: 24px; }"
+        "QComboBox::down-arrow { image: url(:/ui/arrow_down.png); width: 12px; height: 8px; }"
+    );
     mainLayout->addWidget(createSettingItem("性别", m_genderCombo));
 
     addSeparator(mainLayout);
@@ -249,7 +253,11 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
         m_birthdayEdit->setDate(QDate::fromString(m_birthday, "yyyy-MM-dd"));
     else
         m_birthdayEdit->setDate(QDate::currentDate());
-    m_birthdayEdit->setStyleSheet("border: none; font-size: 14px; background: transparent;");
+    m_birthdayEdit->setStyleSheet(
+        "QDateEdit { border: none; font-size: 14px; background: transparent; }"
+        "QDateEdit::drop-down { border: none; width: 24px; }"
+        "QDateEdit::down-arrow { image: url(:/ui/arrow_down.png); width: 12px; height: 8px; }"
+    );
     mainLayout->addWidget(createSettingItem("生日", m_birthdayEdit));
 
     addSeparator(mainLayout);
@@ -428,11 +436,6 @@ void ProfileDialog::applyStyles()
         // 下拉框 — 主体
         "QComboBox { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QComboBox:focus { border-bottom: 1px solid #07c160; }"
-        "QComboBox::drop-down { border: none; width: 24px; }"
-        "QComboBox::down-arrow { image: url(data:image/png;base64,"
-        "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAICAYAAADN5B7xAAAAPUlEQVR4nGNgIBEwgojQ0ND/xGpg"
-        "AhGrV68GayQEVq9ezQjWQIwmmDxcAz5NyOIoGogBGBrQbSHWfzhDDgBD4RQYYA6aWgAAAABJRU5E"
-        "rkJggg==); width: 12px; height: 8px; }"
 
         // 下拉框 — 弹出列表（关键：强制白色背景）
         "QComboBox QAbstractItemView { background-color: #ffffff; border: 1px solid #e0e0e0; "
@@ -444,11 +447,6 @@ void ProfileDialog::applyStyles()
         // 日期编辑框
         "QDateEdit { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QDateEdit:focus { border-bottom: 1px solid #07c160; }"
-        "QDateEdit::drop-down { border: none; width: 24px; }"
-        "QDateEdit::down-arrow { image: url(data:image/png;base64,"
-        "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAICAYAAADN5B7xAAAAPUlEQVR4nGNgIBEwgojQ0ND/xGpg"
-        "AhGrV68GayQEVq9ezQjWQIwmmDxcAz5NyOIoGogBGBrQbSHWfzhDDgBD4RQYYA6aWgAAAABJRU5E"
-        "rkJggg==); width: 12px; height: 8px; }"
 
         // 日历弹窗（关键：强制白色主题）
         "QCalendarWidget { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 4px; }"
