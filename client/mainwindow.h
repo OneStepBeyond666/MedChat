@@ -56,6 +56,7 @@ private slots:
     void onAvatarClicked();
     void onContactProfileChanged(const QString &username, const QString &nickname,
                                   const QByteArray &avatarData);
+    void onAddFriendRequested();
 
 private:
     void setupUI();

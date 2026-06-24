@@ -5,6 +5,7 @@
 #include "common/constants.h"
 #include "ui/leftsidebar.h"
 #include "ui/profiledialog.h"
+#include "ui/addfrienddialog.h"
 #include "ui/chatwidget.h"
 #include <QSplitter>
 #include <QVBoxLayout>
@@ -62,6 +63,7 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_sidebar, &LeftSidebar::contactSelected, this, &MainWindow::onContactSelected);
     connect(m_sidebar, &LeftSidebar::sessionSelected, this, &MainWindow::onSessionSelected);
     connect(m_sidebar, &LeftSidebar::avatarClicked, this, &MainWindow::onAvatarClicked);
+    connect(m_sidebar, &LeftSidebar::addFriendRequested, this, &MainWindow::onAddFriendRequested);
 
     // 初始化侧栏资料
     m_sidebar->setSelfProfile(m_nickname, m_avatarData);
@@ -278,6 +280,25 @@ void MainWindow::onContactProfileChanged(const QString &username, const QString 
 
     // 刷新会话列表（昵称/头像可能已变）
     loadSessionsList();
+}
+
+// ============================================================
+// 添加好友
+// ============================================================
+
+void MainWindow::onAddFriendRequested()
+{
+    AddFriendDialog *dlg = new AddFriendDialog(this);
+    connect(dlg, &AddFriendDialog::friendRequestSent, this, [this](const QString &username) {
+        if (username == m_username) {
+            statusBar()->showMessage("不能添加自己为好友", 3000);
+            return;
+        }
+        m_client->sendFriendRequest(username);
+        statusBar()->showMessage("已向 " + username + " 发送好友请求", 3000);
+    });
+    dlg->exec();
+    dlg->deleteLater();
 }
 
 // ============================================================

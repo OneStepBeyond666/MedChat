@@ -28,10 +28,10 @@ void SessionListWidget::setupUI()
 void SessionListWidget::applyStyles()
 {
     setStyleSheet(
-        "#sessionList { border: none; background: #f0f0f0; }"
-        "#sessionList::item { padding: 8px 12px; border-bottom: 1px solid #e8e8e8; }"
-        "#sessionList::item:selected { background-color: #c8e6c9; }"
-        "#sessionList::item:hover { background-color: #e0e0e0; }"
+        "#sessionList { border: none; background: #EBEBEB; }"
+        "#sessionList::item { padding: 8px 12px; border-bottom: 1px solid #E0E0E0; }"
+        "#sessionList::item:selected { background-color: #C8E6C9; }"
+        "#sessionList::item:hover { background-color: #DCDCDC; }"
     );
 }
 
@@ -125,7 +125,7 @@ QListWidgetItem *SessionListWidget::createSessionItem(const SessionInfo &s)
 
     // 创建 QListWidgetItem
     QListWidgetItem *item = new QListWidgetItem;
-    item->setSizeHint(QSize(260, 56));
+    item->setSizeHint(QSize(220, 56));
     item->setData(Qt::UserRole, s.contactUid);
 
     // 存储昵称用于过滤

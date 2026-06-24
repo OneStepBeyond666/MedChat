@@ -26,6 +26,10 @@ private slots:
 private:
     void setupUI();
     void applyStyles();
+    void rebuildList();
+
+    /// 获取字符串的分组字母 (A-Z 或 #)
+    static QChar groupLetter(const QString &str);
 
     QListWidget *m_listWidget;
     QMap<QString, ContactInfo> m_contacts;

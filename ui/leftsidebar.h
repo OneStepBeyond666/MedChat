@@ -5,6 +5,7 @@
 #include <QLineEdit>
 #include <QLabel>
 #include <QPushButton>
+#include <QToolButton>
 #include <QStackedWidget>
 #include <QButtonGroup>
 #include <QByteArray>
@@ -13,71 +14,63 @@
 class SessionListWidget;
 class ContactListWidget;
 class ContactInfo;
+class QMenu;
 
+// ============================================================
+// 微信风格左侧栏：IconBar(55px深色) + ContentPanel(浅色)
+// ============================================================
 class LeftSidebar : public QWidget
 {
     Q_OBJECT
 public:
     explicit LeftSidebar(QWidget *parent = nullptr);
 
-    /// 设置自身头像和昵称
     void setSelfProfile(const QString &nickname, const QByteArray &avatarData);
-
-    /// 设置联系人列表（通讯录 Tab）
     void setContacts(const QMap<QString, ContactInfo> &contacts);
-
-    /// 设置会话列表（聊天 Tab）
     void setSessions(const QVector<struct SessionInfo> &sessions);
-
-    /// 更新单个会话
     void updateSession(const struct SessionInfo &session);
-
-    /// 刷新会话列表（从外部触发重新加载）
     void refreshSessions();
-
-    /// 获取当前选中的联系人（通讯录 Tab）
     QString selectedContact() const;
-
-    /// 清除选择
     void clearSelection();
 
 signals:
-    void contactSelected(const QString &username);     // 从通讯录 Tab 点击
-    void sessionSelected(const QString &username);     // 从聊天 Tab 点击
-    void avatarClicked();                               // 点击头像打开资料窗口
-    void profileUpdateRequested(const QString &nickname, const QByteArray &avatarData);
+    void contactSelected(const QString &username);
+    void sessionSelected(const QString &username);
+    void avatarClicked();
+    void addFriendRequested();
 
 private slots:
-    void onTabChanged(int id);
+    void onIconClicked(int id);
     void onSearchChanged(const QString &text);
     void onAvatarBtnClicked();
     void onSessionClicked(const QString &username);
     void onContactClicked(const QString &username);
+    void onPlusMenuClicked();
 
 private:
     void setupUI();
     void applyStyles();
 
-    // 顶部个人信息区
-    QPushButton *m_avatarBtn;
-    QLabel *m_nicknameLabel;
+    // ---- IconBar (左侧深色导航栏) ----
+    QWidget    *m_iconBar;
+    QPushButton *m_avatarBtn;       // 顶部头像
+    QPushButton *m_chatIconBtn;     // 聊天图标
+    QPushButton *m_contactIconBtn;  // 通讯录图标
+    QButtonGroup *m_iconGroup;
 
-    // Tab 切换
-    QPushButton *m_chatTabBtn;
-    QPushButton *m_contactTabBtn;
-    QButtonGroup *m_tabGroup;
-
-    // 搜索框
-    QLineEdit *m_searchEdit;
-
-    // 内容区
+    // ---- ContentPanel (右侧内容面板) ----
+    QWidget      *m_contentPanel;
+    QLineEdit    *m_searchEdit;
+    QToolButton  *m_plusBtn;
+    QMenu        *m_plusMenu;
     QStackedWidget *m_stack;
-    SessionListWidget *m_sessionList;
-    ContactListWidget *m_contactList;
+    SessionListWidget  *m_sessionList;
+    ContactListWidget  *m_contactList;
 
     // 状态
     QByteArray m_selfAvatarData;
     QString m_selfNickname;
+    int m_currentTab = 0;  // 0=聊天, 1=通讯录
 };
 
 #endif // LEFTSIDEBAR_H

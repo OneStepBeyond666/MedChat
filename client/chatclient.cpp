@@ -511,6 +511,14 @@ void ChatClient::sendProfileUpdate(const QString &nickname, const QByteArray &av
     sendJson(obj);
 }
 
+void ChatClient::sendFriendRequest(const QString &to)
+{
+    QJsonObject obj = Protocol::makeMsg(MsgType::FriendRequest);
+    obj["to"] = to;
+    obj["text"] = "请求添加你为好友";
+    sendJson(obj);
+}
+
 void ChatClient::handleProfileUpdated(const QJsonObject &msg)
 {
     QString username = msg["username"].toString();

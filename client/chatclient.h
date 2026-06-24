@@ -51,6 +51,9 @@ public:
     /// 发送资料更新请求（昵称和/或头像）
     void sendProfileUpdate(const QString &nickname, const QByteArray &avatarData);
 
+    /// 发送好友请求
+    void sendFriendRequest(const QString &to);
+
     QString myUsername() const { return m_username; }
     QString myRole() const { return m_role; }
     QString myNickname() const { return m_myNickname; }

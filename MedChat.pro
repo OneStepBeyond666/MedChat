@@ -20,6 +20,7 @@ SOURCES += \
     client/localdb.cpp \
     client/loginwindow.cpp \
     client/mainwindow.cpp \
+    ui/addfrienddialog.cpp \
     ui/avatarcropper.cpp \
     ui/contactlistwidget.cpp \
     ui/chatwidget.cpp \
@@ -39,6 +40,7 @@ HEADERS += \
     client/localdb.h \
     client/loginwindow.h \
     client/mainwindow.h \
+    ui/addfrienddialog.h \
     ui/avatarcropper.h \
     ui/contactlistwidget.h \
     ui/chatwidget.h \
