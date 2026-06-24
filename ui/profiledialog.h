@@ -84,6 +84,8 @@ private:
     QPushButton *m_saveBtn;
     QPushButton *m_sendMsgBtn;
     QPushButton *m_addFriendBtn;
+    QLabel *m_passArrow;      // 修改密码箭头（hover变色）
+    QWidget *m_passItem;      // 修改密码容器（hover检测）
 };
 
 #endif // PROFILEDIALOG_H

@@ -283,35 +283,25 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     mainLayout->addSpacing(16);
     mainLayout->addWidget(createGroupTitle("账号安全"));
 
-    // 修改密码入口 - 白色卡片风格，悬停浅灰
-    QWidget *passItem = new QWidget;
-    passItem->setCursor(Qt::PointingHandCursor);
-    QHBoxLayout *passLayout = new QHBoxLayout(passItem);
+    // 修改密码入口 - 白色卡片风格，悬停浅灰，箭头hover变色
+    m_passItem = new QWidget;
+    m_passItem->setCursor(Qt::PointingHandCursor);
+    m_passItem->setObjectName("passItem");
+    m_passItem->setStyleSheet(
+        "#passItem { background-color: white; }"
+        "#passItem:hover { background-color: #f5f5f5; }"
+    );
+    QHBoxLayout *passLayout = new QHBoxLayout(m_passItem);
     passLayout->setContentsMargins(16, 12, 16, 12);
     QLabel *passLabel = new QLabel("修改密码");
     passLabel->setStyleSheet("font-size: 14px; color: #333;");
     passLayout->addWidget(passLabel);
     passLayout->addStretch();
-    QLabel *passArrow = new QLabel("›");
-    passArrow->setStyleSheet("font-size: 18px; color: #ccc;");
-    passLayout->addWidget(passArrow);
-
-    // 通过样式 + 属性实现悬停效果
-    passItem->setObjectName("passItem");
-    passItem->setStyleSheet(
-        "#passItem { background-color: white; }"
-        "#passItem:hover { background-color: #f5f5f5; }"
-    );
-
-    // 用透明按钮覆盖整个区域接收点击
-    QPushButton *passBtn = new QPushButton(passItem);
-    passBtn->setGeometry(0, 0, 420, 44);
-    passBtn->setStyleSheet(
-        "QPushButton { background: transparent; border: none; }"
-    );
-    passBtn->setCursor(Qt::PointingHandCursor);
-    connect(passBtn, &QPushButton::clicked, this, &ProfileDialog::onChangePasswordClicked);
-    mainLayout->addWidget(passItem);
+    m_passArrow = new QLabel("›");
+    m_passArrow->setStyleSheet("font-size: 18px; color: #cccccc;");
+    passLayout->addWidget(m_passArrow);
+    m_passItem->installEventFilter(this);
+    mainLayout->addWidget(m_passItem);
 }
 
 void ProfileDialog::addSeparator(QVBoxLayout *layout)
@@ -438,10 +428,11 @@ void ProfileDialog::applyStyles()
         // 下拉框 — 主体
         "QComboBox { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QComboBox:focus { border-bottom: 1px solid #07c160; }"
-        "QComboBox::drop-down { border: none; width: 20px; }"
+        "QComboBox::drop-down { border: none; width: 24px; }"
         "QComboBox::down-arrow { image: url(data:image/png;base64,"
-        "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAGCAYAAAD68A/GAAAAJ0lEQVR4nGNgQANpaWn/QRhdHKsivIrRFWFV"
-        "hE8RimJCiuCKiVUIAHU1V6mQ3i1NAAAAAElFTkSuQmCC); }"
+        "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAICAYAAADN5B7xAAAAPUlEQVR4nGNgIBEwgojQ0ND/xGpg"
+        "AhGrV68GayQEVq9ezQjWQIwmmDxcAz5NyOIoGogBGBrQbSHWfzhDDgBD4RQYYA6aWgAAAABJRU5E"
+        "rkJggg==); width: 12px; height: 8px; }"
 
         // 下拉框 — 弹出列表（关键：强制白色背景）
         "QComboBox QAbstractItemView { background-color: #ffffff; border: 1px solid #e0e0e0; "
@@ -453,10 +444,11 @@ void ProfileDialog::applyStyles()
         // 日期编辑框
         "QDateEdit { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QDateEdit:focus { border-bottom: 1px solid #07c160; }"
-        "QDateEdit::drop-down { border: none; width: 20px; }"
+        "QDateEdit::drop-down { border: none; width: 24px; }"
         "QDateEdit::down-arrow { image: url(data:image/png;base64,"
-        "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAGCAYAAAD68A/GAAAAJ0lEQVR4nGNgQANpaWn/QRhdHKsivIrRFWFV"
-        "hE8RimJCiuCKiVUIAHU1V6mQ3i1NAAAAAElFTkSuQmCC); }"
+        "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAICAYAAADN5B7xAAAAPUlEQVR4nGNgIBEwgojQ0ND/xGpg"
+        "AhGrV68GayQEVq9ezQjWQIwmmDxcAz5NyOIoGogBGBrQbSHWfzhDDgBD4RQYYA6aWgAAAABJRU5E"
+        "rkJggg==); width: 12px; height: 8px; }"
 
         // 日历弹窗（关键：强制白色主题）
         "QCalendarWidget { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 4px; }"
@@ -623,6 +615,18 @@ bool ProfileDialog::eventFilter(QObject *obj, QEvent *event)
     if (obj == m_avatarLabel && event->type() == QEvent::MouseButtonPress) {
         onAvatarClicked();
         return true;
+    }
+    // 修改密码：点击 + hover箭头变色
+    if (obj == m_passItem) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            onChangePasswordClicked();
+            return true;
+        }
+        if (event->type() == QEvent::Enter) {
+            m_passArrow->setStyleSheet("font-size: 18px; color: #999999;");
+        } else if (event->type() == QEvent::Leave) {
+            m_passArrow->setStyleSheet("font-size: 18px; color: #cccccc;");
+        }
     }
     // 日历弹窗延迟创建，点击 QDateEdit 时强制设置 Palette
     if (obj == m_birthdayEdit && event->type() == QEvent::MouseButtonPress) {
