@@ -58,6 +58,16 @@ public:
     /// 拒绝好友请求（status 0→2），成功返回 true
     bool rejectFriendRequest(int requestId);
 
+    // ---- 密码安全 ----
+    /// 获取密保问题，返回 {success, question}，用户不存在返回 success=false
+    QJsonObject getSecurityQuestion(const QString &username);
+
+    /// 重置密码：校验答案哈希，成功则更新密码并返回 true
+    bool resetPassword(const QString &username, const QString &answerHash, const QString &newPasswordHash);
+
+    /// 修改密码：校验旧密码，成功则更新密码并返回 true
+    bool changePassword(int uid, const QString &oldPasswordHash, const QString &newPasswordHash);
+
 private:
     void initDatabase();
     void createTables();

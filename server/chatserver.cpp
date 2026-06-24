@@ -93,6 +93,12 @@ void ChatServer::onMessageReceived(ClientHandler *handler, const QJsonObject &ms
         handleFriendRequest(handler, msg);
     } else if (type == MsgType::FriendResponse) {
         handleFriendResponse(handler, msg);
+    } else if (type == MsgType::GetSecQuestion) {
+        handleGetSecQuestion(handler, msg);
+    } else if (type == MsgType::ResetPassword) {
+        handleResetPassword(handler, msg);
+    } else if (type == MsgType::ChangePassword) {
+        handleChangePassword(handler, msg);
     } else {
         qWarning() << "[未知消息] 类型:" << type;
     }
@@ -125,10 +131,17 @@ void ChatServer::handleRegister(ClientHandler *handler, const QJsonObject &msg)
     QString password = msg["password"].toString();
     QString role = msg["role"].toString();
     QString nickname = msg["nickname"].toString();
+    QString secQuestion = msg["sec_question"].toString();
+    QString secAnswerHash = msg["sec_answer_hash"].toString();
 
     if (username.isEmpty() || password.isEmpty() || role.isEmpty()) {
         qDebug() << "[注册失败] 参数不完整";
         handler->sendMessage(Protocol::makeAuthResult(false, "用户名、密码和角色不能为空"));
+        return;
+    }
+    if (secQuestion.isEmpty() || secAnswerHash.isEmpty()) {
+        qDebug() << "[注册失败] 密保问题或答案不能为空";
+        handler->sendMessage(Protocol::makeAuthResult(false, "请设置密保问题和答案"));
         return;
     }
     if (role != Role::Doctor && role != Role::Patient) {
@@ -141,7 +154,7 @@ void ChatServer::handleRegister(ClientHandler *handler, const QJsonObject &msg)
         handler->sendMessage(Protocol::makeAuthResult(false, "用户名已存在"));
         return;
     }
-    if (m_userManager->registerUser(username, password, role, nickname)) {
+    if (m_userManager->registerUser(username, password, role, nickname, secQuestion, secAnswerHash)) {
         handler->setUsername(username);
         handler->setRole(role);
         QString actualNick = nickname.trimmed().isEmpty() ? username : nickname.trimmed();
@@ -777,4 +790,85 @@ void ChatServer::deliverPendingFriendRequests(ClientHandler *handler)
     }
 
     qDebug() << QString("[好友请求] %1 好友请求下发完成").arg(username);
+}
+
+// =========================================================
+// 密码安全
+// =========================================================
+
+void ChatServer::handleGetSecQuestion(ClientHandler *handler, const QJsonObject &msg)
+{
+    QString username = msg["username"].toString();
+    if (username.isEmpty()) {
+        handler->sendMessage(Protocol::makeSecQuestionRes(false, QString(), "用户名不能为空"));
+        return;
+    }
+
+    QJsonObject result = m_userManager->getSecurityQuestion(username);
+    handler->sendMessage(Protocol::makeSecQuestionRes(
+        result["success"].toBool(),
+        result["question"].toString(),
+        result["error"].toString()
+    ));
+}
+
+void ChatServer::handleResetPassword(ClientHandler *handler, const QJsonObject &msg)
+{
+    QString username = msg["username"].toString();
+    QString answerHash = msg["answer_hash"].toString();
+    QString newPassword = msg["new_password"].toString();
+
+    if (username.isEmpty() || answerHash.isEmpty() || newPassword.isEmpty()) {
+        handler->sendMessage(Protocol::makeResetPasswordRes(false, "参数不完整"));
+        return;
+    }
+
+    if (m_userManager->resetPassword(username, answerHash, newPassword)) {
+        // 强制该用户下线（踢出当前 ClientHandler）
+        ClientHandler *target = findClient(username);
+        if (target) {
+            qDebug() << QString("[密码重置] %1 密码已重置，强制下线").arg(username);
+            QJsonObject kick = Protocol::makeMsg("kicked");
+            kick["reason"] = "密码已重置，请使用新密码重新登录";
+            target->sendMessage(kick);
+            target->socket()->disconnectFromHost();
+        }
+        handler->sendMessage(Protocol::makeResetPasswordRes(true, "密码重置成功，请使用新密码登录"));
+    } else {
+        handler->sendMessage(Protocol::makeResetPasswordRes(false, "密保答案错误或重置失败"));
+    }
+}
+
+void ChatServer::handleChangePassword(ClientHandler *handler, const QJsonObject &msg)
+{
+    QString username = handler->username();
+    if (username.isEmpty()) {
+        handler->sendMessage(Protocol::makeChangePasswordRes(false, "未登录"));
+        return;
+    }
+
+    QString oldPassword = msg["old_password"].toString();
+    QString newPassword = msg["new_password"].toString();
+
+    if (oldPassword.isEmpty() || newPassword.isEmpty()) {
+        handler->sendMessage(Protocol::makeChangePasswordRes(false, "旧密码和新密码不能为空"));
+        return;
+    }
+
+    int uid = m_userManager->getUidByUsername(username);
+    if (uid <= 0) {
+        handler->sendMessage(Protocol::makeChangePasswordRes(false, "用户不存在"));
+        return;
+    }
+
+    if (m_userManager->changePassword(uid, oldPassword, newPassword)) {
+        // 强制当前客户端下线
+        qDebug() << QString("[修改密码] %1 密码已修改，强制下线").arg(username);
+        QJsonObject kick = Protocol::makeMsg("kicked");
+        kick["reason"] = "密码已修改，请使用新密码重新登录";
+        handler->sendMessage(kick);
+        handler->socket()->disconnectFromHost();
+    } else {
+        handler->sendMessage(Protocol::makeChangePasswordRes(false, "旧密码错误或修改失败"));
+    }
 }

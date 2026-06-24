@@ -24,6 +24,8 @@ private slots:
     void onLoginClicked();
     // 注册页
     void onRegisterClicked();
+    // 忘记密码
+    void onForgotPasswordClicked();
     // 网络回调
     void onConnected();
     void onConnectionFailed(const QString &error);
@@ -51,6 +53,7 @@ private:
     QPushButton *m_loginBtn;
     QLabel *m_loginStatusLabel;
     QPushButton *m_loginSwitchBtn;
+    QPushButton *m_forgotPassBtn;  // 忘记密码
 
     // --- 注册页控件 ---
     QLineEdit *m_regUserEdit;
@@ -58,6 +61,8 @@ private:
     QLineEdit *m_regPassEdit;
     QLineEdit *m_regPassConfirmEdit;
     QComboBox *m_regRoleCombo;
+    QLineEdit *m_regSecQuestionEdit;  // 密保问题
+    QLineEdit *m_regSecAnswerEdit;    // 密保答案
     QPushButton *m_regBtn;
     QLabel *m_regStatusLabel;
     QPushButton *m_regSwitchBtn;

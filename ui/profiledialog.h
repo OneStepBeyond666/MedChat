@@ -24,12 +24,14 @@ signals:
     void profileSaved(const QString &nickname, const QByteArray &avatarData);
     void sendMessageRequested(const QString &username);
     void addFriendRequested(const QString &username);
+    void changePasswordRequested();  // 修改密码请求
 
 private slots:
     void onAvatarClicked();
     void onSaveClicked();
     void onSendMsgClicked();
     void onAddFriendClicked();
+    void onChangePasswordClicked();
 
 private:
     void setupSelfUI();
@@ -50,6 +52,7 @@ private:
     QLabel *m_roleLabel;
     QLabel *m_userLabel;
     QPushButton *m_saveBtn;      // SelfProfile only
+    QPushButton *m_changePassBtn; // SelfProfile only
     QPushButton *m_cancelBtn;
     QPushButton *m_sendMsgBtn;   // OtherProfile only
     QPushButton *m_addFriendBtn; // OtherProfile only

@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QByteArray>
+#include <QJsonObject>
 
 class ServerDB;
 
@@ -22,7 +23,8 @@ public:
     explicit UserManager(ServerDB *db, QObject *parent = nullptr);
 
     // ---- 核心接口（与旧版兼容） ----
-    bool registerUser(const QString &username, const QString &password, const QString &role, const QString &nickname);
+    bool registerUser(const QString &username, const QString &password, const QString &role, const QString &nickname,
+                      const QString &secQuestion = QString(), const QString &secAnswerHash = QString());
     bool authenticate(const QString &username, const QString &password, QString &role) const;
     bool userExists(const QString &username) const;
     QList<UserInfo> allUsers() const;
@@ -40,6 +42,16 @@ public:
 
     /// 获取头像二进制数据
     QByteArray getAvatar(int uid) const;
+
+    // ---- 密码安全 ----
+    /// 获取密保问题
+    QJsonObject getSecurityQuestion(const QString &username) const;
+
+    /// 重置密码（校验密保答案）
+    bool resetPassword(const QString &username, const QString &answerHash, const QString &newPassword);
+
+    /// 修改密码（校验旧密码）
+    bool changePassword(int uid, const QString &oldPassword, const QString &newPassword);
 
 private:
     /// 生成随机盐（32 字节 hex = 64 字符）

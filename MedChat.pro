@@ -30,7 +30,9 @@ SOURCES += \
     ui/sessionlistwidget.cpp \
     ui/friendrequestwidget.cpp \
     ui/friendrequestnotification.cpp \
-    ui/nearbypeoplewidget.cpp
+    ui/nearbypeoplewidget.cpp \
+    ui/forgotpassworddialog.cpp \
+    ui/changepassworddialog.cpp
 
 HEADERS += \
     common/protocol.h \
@@ -53,7 +55,9 @@ HEADERS += \
     ui/sessionlistwidget.h \
     ui/friendrequestwidget.h \
     ui/friendrequestnotification.h \
-    ui/nearbypeoplewidget.h
+    ui/nearbypeoplewidget.h \
+    ui/forgotpassworddialog.h \
+    ui/changepassworddialog.h
 
 RESOURCES += \
     resources/style.qrc

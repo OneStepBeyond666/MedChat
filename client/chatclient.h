@@ -40,7 +40,8 @@ public:
     void disconnectFromServer();
     bool isConnected() const;
 
-    void sendRegister(const QString &username, const QString &password, const QString &role, const QString &nickname);
+    void sendRegister(const QString &username, const QString &password, const QString &role, const QString &nickname,
+                       const QString &secQuestion = QString(), const QString &secAnswerHash = QString());
     void sendLogin(const QString &username, const QString &password);
 
     void sendTextMessage(const QString &to, const QString &text);
@@ -56,6 +57,15 @@ public:
 
     /// 发送好友请求响应（接受/拒绝）
     void sendFriendResponse(int requestId, const QString &to, bool accept);
+
+    /// 发送密保问题查询请求
+    void sendGetSecQuestion(const QString &username);
+
+    /// 发送重置密码请求
+    void sendResetPassword(const QString &username, const QString &answerHash, const QString &newPassword);
+
+    /// 发送修改密码请求
+    void sendChangePassword(const QString &oldPassword, const QString &newPassword);
 
     QString myUsername() const { return m_username; }
     QString myRole() const { return m_role; }
@@ -97,6 +107,12 @@ signals:
                                const QString &message, int requestId);
     void onlineUsersUpdated(const QMap<QString, ContactInfo> &onlineUsers);
 
+    // 密码安全
+    void secQuestionReceived(bool success, const QString &question, const QString &error);
+    void resetPasswordResult(bool success, const QString &message);
+    void changePasswordResult(bool success, const QString &message);
+    void kicked(const QString &reason);  // 被服务端强制下线
+
 private slots:
     void onConnected();
     void onDisconnected();
@@ -122,6 +138,10 @@ private:
     void handleFriendResponse(const QJsonObject &msg);
     void handleFriendRequestConflict(const QJsonObject &msg);
     void handleProfileUpdated(const QJsonObject &msg);
+    void handleSecQuestionRes(const QJsonObject &msg);
+    void handleResetPasswordRes(const QJsonObject &msg);
+    void handleChangePasswordRes(const QJsonObject &msg);
+    void handleKicked(const QJsonObject &msg);
 
     /// 离线消息去重：检查本地 DB 是否已有同条消息
     bool isDuplicateOfflineMessage(const QString &from, const QString &content, qint64 timestamp);

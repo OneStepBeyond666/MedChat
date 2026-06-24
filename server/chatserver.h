@@ -40,6 +40,9 @@ private:
     void handleUpdateProfile(ClientHandler *handler, const QJsonObject &msg);
     void handleFriendRequest(ClientHandler *handler, const QJsonObject &msg);
     void handleFriendResponse(ClientHandler *handler, const QJsonObject &msg);
+    void handleGetSecQuestion(ClientHandler *handler, const QJsonObject &msg);
+    void handleResetPassword(ClientHandler *handler, const QJsonObject &msg);
+    void handleChangePassword(ClientHandler *handler, const QJsonObject &msg);
 
     void broadcastOnlineStatus();
     void sendContactList(ClientHandler *handler);

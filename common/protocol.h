@@ -45,6 +45,14 @@ namespace MsgType {
     constexpr const char* UpdateProfile  = "update_profile";
     constexpr const char* ProfileUpdated = "profile_updated";
 
+    // 密码安全
+    constexpr const char* GetSecQuestion   = "get_sec_question";
+    constexpr const char* SecQuestionRes     = "sec_question_res";
+    constexpr const char* ResetPassword     = "reset_password";
+    constexpr const char* ResetPasswordRes  = "reset_password_res";
+    constexpr const char* ChangePassword    = "change_password";
+    constexpr const char* ChangePasswordRes = "change_password_res";
+
     // 特殊联系人
     constexpr const char* FileHelper   = "\xe6\x96\x87\xe4\xbb\xb6\xe4\xbc\xa0\xe8\xbe\x93\xe5\x8a\xa9\xe6\x89\x8b";
 }
@@ -74,6 +82,11 @@ public:
     static QJsonObject makeFileReject(const QString &from, const QString &to, const QString &fileId, const QString &reason);
     static QJsonObject makeFileData(const QString &fileId, const QByteArray &chunk, int seq);
     static QJsonObject makeFileEnd(const QString &fileId, const QString &md5);
+
+    // 密码安全快捷构造
+    static QJsonObject makeSecQuestionRes(bool success, const QString &question = QString(), const QString &error = QString());
+    static QJsonObject makeResetPasswordRes(bool success, const QString &message = QString());
+    static QJsonObject makeChangePasswordRes(bool success, const QString &message = QString());
 };
 
 #endif // PROTOCOL_H

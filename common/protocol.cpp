@@ -126,3 +126,30 @@ QJsonObject Protocol::makeFileEnd(const QString &fileId, const QString &md5)
     obj["md5"] = md5;
     return obj;
 }
+
+QJsonObject Protocol::makeSecQuestionRes(bool success, const QString &question, const QString &error)
+{
+    QJsonObject obj = makeMsg(MsgType::SecQuestionRes);
+    obj["success"] = success;
+    if (!question.isEmpty())
+        obj["question"] = question;
+    if (!error.isEmpty())
+        obj["error"] = error;
+    return obj;
+}
+
+QJsonObject Protocol::makeResetPasswordRes(bool success, const QString &message)
+{
+    QJsonObject obj = makeMsg(MsgType::ResetPasswordRes);
+    obj["success"] = success;
+    obj["message"] = message;
+    return obj;
+}
+
+QJsonObject Protocol::makeChangePasswordRes(bool success, const QString &message)
+{
+    QJsonObject obj = makeMsg(MsgType::ChangePasswordRes);
+    obj["success"] = success;
+    obj["message"] = message;
+    return obj;
+}

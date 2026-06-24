@@ -53,13 +53,16 @@ bool ChatClient::isConnected() const
     return m_socket->state() == QAbstractSocket::ConnectedState;
 }
 
-void ChatClient::sendRegister(const QString &username, const QString &password, const QString &role, const QString &nickname)
+void ChatClient::sendRegister(const QString &username, const QString &password, const QString &role, const QString &nickname,
+                               const QString &secQuestion, const QString &secAnswerHash)
 {
     QJsonObject obj = Protocol::makeMsg(MsgType::Register);
     obj["username"] = username;
     obj["password"] = password;
     obj["role"] = role;
     obj["nickname"] = nickname;
+    obj["sec_question"] = secQuestion;
+    obj["sec_answer_hash"] = secAnswerHash;
     sendJson(obj);
 }
 
@@ -203,6 +206,10 @@ void ChatClient::processMessage(const QJsonObject &msg)
     else if (type == MsgType::FriendResponse) handleFriendResponse(msg);
     else if (type == MsgType::FriendRequestConflict) handleFriendRequestConflict(msg);
     else if (type == MsgType::ProfileUpdated) handleProfileUpdated(msg);
+    else if (type == MsgType::SecQuestionRes) handleSecQuestionRes(msg);
+    else if (type == MsgType::ResetPasswordRes) handleResetPasswordRes(msg);
+    else if (type == MsgType::ChangePasswordRes) handleChangePasswordRes(msg);
+    else if (type == "kicked") handleKicked(msg);
     else
         qWarning() << "[Client] Unknown message type:" << type;
 }
@@ -692,4 +699,58 @@ void ChatClient::continueSendingFile(const QString &fileId)
     // 清理发送方的 transfer 条目并通知 UI 发送完成
     m_fileTransfers.remove(fileId);
     emit fileSendCompleted(fileId);
+}
+
+void ChatClient::sendGetSecQuestion(const QString &username)
+{
+    QJsonObject obj = Protocol::makeMsg(MsgType::GetSecQuestion);
+    obj["username"] = username;
+    sendJson(obj);
+}
+
+void ChatClient::sendResetPassword(const QString &username, const QString &answerHash, const QString &newPassword)
+{
+    QJsonObject obj = Protocol::makeMsg(MsgType::ResetPassword);
+    obj["username"] = username;
+    obj["answer_hash"] = answerHash;
+    obj["new_password"] = newPassword;
+    sendJson(obj);
+}
+
+void ChatClient::sendChangePassword(const QString &oldPassword, const QString &newPassword)
+{
+    QJsonObject obj = Protocol::makeMsg(MsgType::ChangePassword);
+    obj["old_password"] = oldPassword;
+    obj["new_password"] = newPassword;
+    sendJson(obj);
+}
+
+void ChatClient::handleSecQuestionRes(const QJsonObject &msg)
+{
+    bool success = msg["success"].toBool();
+    QString question = msg["question"].toString();
+    QString error = msg["error"].toString();
+    emit secQuestionReceived(success, question, error);
+}
+
+void ChatClient::handleResetPasswordRes(const QJsonObject &msg)
+{
+    bool success = msg["success"].toBool();
+    QString message = msg["message"].toString();
+    emit resetPasswordResult(success, message);
+}
+
+void ChatClient::handleChangePasswordRes(const QJsonObject &msg)
+{
+    bool success = msg["success"].toBool();
+    QString message = msg["message"].toString();
+    emit changePasswordResult(success, message);
+}
+
+void ChatClient::handleKicked(const QJsonObject &msg)
+{
+    QString reason = msg["reason"].toString();
+    qDebug() << "[Client] 被服务端强制下线:" << reason;
+    emit kicked(reason);
+    disconnectFromServer();
 }

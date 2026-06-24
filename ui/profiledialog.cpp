@@ -1,6 +1,8 @@
 #include "profiledialog.h"
 #include "avatarcropper.h"
 #include "common/constants.h"
+#include "changepassworddialog.h"
+#include "client/chatclient.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMessageBox>
@@ -96,6 +98,13 @@ void ProfileDialog::setupSelfUI()
     // 按钮
     QHBoxLayout *btnLayout = new QHBoxLayout;
     btnLayout->addStretch();
+    m_changePassBtn = new QPushButton("修改密码");
+    m_changePassBtn->setStyleSheet(
+        "QPushButton { background-color: #f0f0f0; color: #333; border: 1px solid #ddd; "
+        "padding: 8px 20px; border-radius: 4px; font-size: 14px; }"
+        "QPushButton:hover { background-color: #e0e0e0; }"
+    );
+    connect(m_changePassBtn, &QPushButton::clicked, this, &ProfileDialog::onChangePasswordClicked);
     m_cancelBtn = new QPushButton("取消");
     m_saveBtn = new QPushButton("保存");
     m_saveBtn->setStyleSheet(
@@ -110,6 +119,7 @@ void ProfileDialog::setupSelfUI()
     );
     connect(m_cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
     connect(m_saveBtn, &QPushButton::clicked, this, &ProfileDialog::onSaveClicked);
+    btnLayout->addWidget(m_changePassBtn);
     btnLayout->addWidget(m_cancelBtn);
     btnLayout->addWidget(m_saveBtn);
     mainLayout->addLayout(btnLayout);
@@ -241,4 +251,9 @@ void ProfileDialog::onSendMsgClicked()
 void ProfileDialog::onAddFriendClicked()
 {
     emit addFriendRequested(m_username);
+}
+
+void ProfileDialog::onChangePasswordClicked()
+{
+    emit changePasswordRequested();
 }

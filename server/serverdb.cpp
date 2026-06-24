@@ -12,6 +12,8 @@
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QDateTime>
+#include <QRandomGenerator>
+#include <QCryptographicHash>
 
 ServerDB::ServerDB(const QString &dbDir, QObject *parent)
     : QObject(parent)
@@ -70,13 +72,15 @@ void ServerDB::createTables()
     // =========================================================
     bool ok = q.exec(
         "CREATE TABLE IF NOT EXISTS users ("
-        "  uid           INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "  username      TEXT    UNIQUE NOT NULL,"
-        "  password_hash TEXT    NOT NULL,"
-        "  salt          TEXT    NOT NULL,"
-        "  nickname      TEXT    DEFAULT '',"
-        "  role          TEXT    NOT NULL CHECK(role IN ('doctor','patient')),"
-        "  avatar_blob   BLOB"
+        "  uid              INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  username         TEXT    UNIQUE NOT NULL,"
+        "  password_hash    TEXT    NOT NULL,"
+        "  salt             TEXT    NOT NULL,"
+        "  nickname         TEXT    DEFAULT '',"
+        "  role             TEXT    NOT NULL CHECK(role IN ('doctor','patient')),"
+        "  avatar_blob      BLOB,"
+        "  sec_question     TEXT    DEFAULT '',"
+        "  sec_answer_hash  TEXT    DEFAULT ''"
         ")"
     );
     if (!ok) qCritical() << "[ServerDB] 创建 users 表失败:" << q.lastError().text();
@@ -137,6 +141,14 @@ void ServerDB::createTables()
     if (!rec.contains("status")) {
         q.exec("ALTER TABLE offline_messages ADD COLUMN status INTEGER NOT NULL DEFAULT 0");
         qDebug() << "[ServerDB] offline_messages 表已添加 status 列";
+    }
+
+    // 兼容旧数据库：若 users 表已存在但无 sec_question 列，自动 ALTER ADD
+    QSqlRecord userRec = db.record("users");
+    if (!userRec.contains("sec_question")) {
+        q.exec("ALTER TABLE users ADD COLUMN sec_question TEXT DEFAULT ''");
+        q.exec("ALTER TABLE users ADD COLUMN sec_answer_hash TEXT DEFAULT ''");
+        qDebug() << "[ServerDB] users 表已添加 sec_question 和 sec_answer_hash 列";
     }
 
     qDebug() << "[ServerDB] 数据表初始化完成 (users, friends, offline_messages)";
@@ -482,6 +494,122 @@ bool ServerDB::rejectFriendRequest(int requestId)
 
     if (!q.exec()) {
         qWarning() << "[ServerDB] 拒绝好友请求失败:" << q.lastError().text();
+        return false;
+    }
+    return q.numRowsAffected() > 0;
+}
+
+// =========================================================
+// 密码安全
+// =========================================================
+
+QJsonObject ServerDB::getSecurityQuestion(const QString &username)
+{
+    QJsonObject result;
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+
+    q.prepare("SELECT sec_question FROM users WHERE username = :u");
+    q.bindValue(":u", username);
+
+    if (!q.exec() || !q.next()) {
+        result["success"] = false;
+        result["error"] = "用户不存在";
+        return result;
+    }
+
+    QString question = q.value(0).toString();
+    if (question.isEmpty()) {
+        result["success"] = false;
+        result["error"] = "该用户未设置密保问题";
+        return result;
+    }
+
+    result["success"] = true;
+    result["question"] = question;
+    return result;
+}
+
+bool ServerDB::resetPassword(const QString &username, const QString &answerHash, const QString &newPasswordHash)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+
+    // 校验答案哈希
+    q.prepare("SELECT sec_answer_hash FROM users WHERE username = :u");
+    q.bindValue(":u", username);
+    if (!q.exec() || !q.next())
+        return false;
+
+    QString storedAnswerHash = q.value(0).toString();
+    if (storedAnswerHash.isEmpty() || storedAnswerHash != answerHash)
+        return false;
+
+    // 更新密码（同时生成新盐）
+    QByteArray saltBytes(32, 0);
+    QRandomGenerator *rng = QRandomGenerator::system();
+    for (int i = 0; i < saltBytes.size(); ++i)
+        saltBytes[i] = static_cast<char>(rng->bounded(256));
+    QString newSalt = QString::fromLatin1(saltBytes.toHex());
+
+    QByteArray data = newSalt.toUtf8() + newPasswordHash.toUtf8();
+    QString newHash = QString::fromLatin1(
+        QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex()
+    );
+
+    q.prepare("UPDATE users SET password_hash = :hash, salt = :salt WHERE username = :u");
+    q.bindValue(":hash", newHash);
+    q.bindValue(":salt", newSalt);
+    q.bindValue(":u", username);
+
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] 重置密码失败:" << q.lastError().text();
+        return false;
+    }
+    return q.numRowsAffected() > 0;
+}
+
+bool ServerDB::changePassword(int uid, const QString &oldPasswordHash, const QString &newPasswordHash)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+
+    // 校验旧密码
+    q.prepare("SELECT password_hash, salt FROM users WHERE uid = :uid");
+    q.bindValue(":uid", uid);
+    if (!q.exec() || !q.next())
+        return false;
+
+    QString storedHash = q.value(0).toString();
+    QString storedSalt = q.value(1).toString();
+
+    QByteArray data = storedSalt.toUtf8() + oldPasswordHash.toUtf8();
+    QString computedHash = QString::fromLatin1(
+        QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex()
+    );
+
+    if (computedHash != storedHash)
+        return false;
+
+    // 生成新盐和新哈希
+    QByteArray saltBytes(32, 0);
+    QRandomGenerator *rng = QRandomGenerator::system();
+    for (int i = 0; i < saltBytes.size(); ++i)
+        saltBytes[i] = static_cast<char>(rng->bounded(256));
+    QString newSalt = QString::fromLatin1(saltBytes.toHex());
+
+    QByteArray newData = newSalt.toUtf8() + newPasswordHash.toUtf8();
+    QString newHash = QString::fromLatin1(
+        QCryptographicHash::hash(newData, QCryptographicHash::Sha256).toHex()
+    );
+
+    q.prepare("UPDATE users SET password_hash = :hash, salt = :salt WHERE uid = :uid");
+    q.bindValue(":hash", newHash);
+    q.bindValue(":salt", newSalt);
+    q.bindValue(":uid", uid);
+
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] 修改密码失败:" << q.lastError().text();
         return false;
     }
     return q.numRowsAffected() > 0;

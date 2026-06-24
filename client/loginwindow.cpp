@@ -1,9 +1,11 @@
 #include "loginwindow.h"
 #include "chatclient.h"
+#include "ui/forgotpassworddialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QTimer>
+#include <QCryptographicHash>
 
 // ============================================================
 // 构造
@@ -71,6 +73,17 @@ void LoginWindow::setupUI()
     m_loginPassEdit->setEchoMode(QLineEdit::Password);
     m_loginPassEdit->setObjectName("inputField");
     lp->addWidget(m_loginPassEdit);
+
+    // 忘记密码链接（右对齐）
+    QHBoxLayout *forgotLayout = new QHBoxLayout;
+    forgotLayout->addStretch();
+    m_forgotPassBtn = new QPushButton("忘记密码？");
+    m_forgotPassBtn->setObjectName("linkBtn");
+    m_forgotPassBtn->setFlat(true);
+    m_forgotPassBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_forgotPassBtn, &QPushButton::clicked, this, &LoginWindow::onForgotPasswordClicked);
+    forgotLayout->addWidget(m_forgotPassBtn);
+    lp->addLayout(forgotLayout);
 
     m_loginBtn = new QPushButton("登 录");
     m_loginBtn->setObjectName("primaryBtn");
@@ -145,6 +158,16 @@ void LoginWindow::setupUI()
     m_regPassConfirmEdit->setEchoMode(QLineEdit::Password);
     m_regPassConfirmEdit->setObjectName("inputField");
     rp->addWidget(m_regPassConfirmEdit);
+
+    m_regSecQuestionEdit = new QLineEdit;
+    m_regSecQuestionEdit->setPlaceholderText("密保问题（如：我的小学名字？）");
+    m_regSecQuestionEdit->setObjectName("inputField");
+    rp->addWidget(m_regSecQuestionEdit);
+
+    m_regSecAnswerEdit = new QLineEdit;
+    m_regSecAnswerEdit->setPlaceholderText("密保答案");
+    m_regSecAnswerEdit->setObjectName("inputField");
+    rp->addWidget(m_regSecAnswerEdit);
 
     m_regRoleCombo = new QComboBox;
     m_regRoleCombo->addItem("我是医生", QString("doctor"));
@@ -328,9 +351,15 @@ void LoginWindow::onRegisterClicked()
     QString password = m_regPassEdit->text();
     QString confirm  = m_regPassConfirmEdit->text();
     QString role     = m_regRoleCombo->currentData().toString();
+    QString secQuestion = m_regSecQuestionEdit->text().trimmed();
+    QString secAnswer   = m_regSecAnswerEdit->text().trimmed();
 
     if (username.isEmpty() || password.isEmpty()) {
         showStatusMessage("用户名和密码不能为空", true);
+        return;
+    }
+    if (secQuestion.isEmpty() || secAnswer.isEmpty()) {
+        showStatusMessage("请设置密保问题和答案", true);
         return;
     }
     if (nickname.isEmpty())
@@ -340,9 +369,25 @@ void LoginWindow::onRegisterClicked()
         return;
     }
 
+    // 密保答案预处理：小写 + 去空格，然后 SHA256
+    QString answerProcessed = secAnswer.toLower().trimmed();
+    QString answerHash = QString::fromLatin1(
+        QCryptographicHash::hash(answerProcessed.toUtf8(), QCryptographicHash::Sha256).toHex()
+    );
+
     setButtonsEnabled(false);
     showStatusMessage("正在注册...", false);
-    m_client->sendRegister(username, password, role, nickname);
+    m_client->sendRegister(username, password, role, nickname, secQuestion, answerHash);
+}
+
+// ============================================================
+// 忘记密码
+// ============================================================
+
+void LoginWindow::onForgotPasswordClicked()
+{
+    ForgotPasswordDialog dlg(m_client, this);
+    dlg.exec();
 }
 
 // ============================================================

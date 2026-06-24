@@ -23,7 +23,8 @@ UserManager::UserManager(ServerDB *db, QObject *parent)
 // 注册
 // ============================================================
 
-bool UserManager::registerUser(const QString &username, const QString &password, const QString &role, const QString &nickname)
+bool UserManager::registerUser(const QString &username, const QString &password, const QString &role, const QString &nickname,
+                                const QString &secQuestion, const QString &secAnswerHash)
 {
     if (username.isEmpty() || password.isEmpty())
         return false;
@@ -44,14 +45,16 @@ bool UserManager::registerUser(const QString &username, const QString &password,
 
     QSqlQuery q(db);
     q.prepare(
-        "INSERT INTO users (username, password_hash, salt, nickname, role) "
-        "VALUES (:username, :hash, :salt, :nickname, :role)"
+        "INSERT INTO users (username, password_hash, salt, nickname, role, sec_question, sec_answer_hash) "
+        "VALUES (:username, :hash, :salt, :nickname, :role, :sec_q, :sec_a)"
     );
     q.bindValue(":username", username);
     q.bindValue(":hash", hash);
     q.bindValue(":salt", salt);
     q.bindValue(":nickname", actualNick);
     q.bindValue(":role", role);
+    q.bindValue(":sec_q", secQuestion);
+    q.bindValue(":sec_a", secAnswerHash);
 
     bool ok = q.exec();
     if (!ok) {
@@ -278,4 +281,95 @@ QByteArray UserManager::processAvatar(const QByteArray &rawData, bool &ok)
 
     ok = true;
     return output;
+}
+
+// ============================================================
+// 密码安全
+// ============================================================
+
+QJsonObject UserManager::getSecurityQuestion(const QString &username) const
+{
+    return m_db->getSecurityQuestion(username);
+}
+
+bool UserManager::resetPassword(const QString &username, const QString &answerHash, const QString &newPassword)
+{
+    QString newPassHash = hashPassword(newPassword, generateSalt());
+    // 注意：这里传给 DB 的是纯新密码，DB 内部会重新生成盐并哈希
+    // 实际上 DB 的 resetPassword 期望接收的是新密码的明文哈希（不对，应该是重新哈希）
+    // 让我重新设计：resetPassword 的 newPasswordHash 应该传明文密码，由 DB 重新哈希
+    // 但为了保持接口一致，我让 UserManager 直接调用 m_db->resetPassword，传入 answerHash 和 newPassword 的哈希
+
+    // 先生成新盐和新哈希
+    QString newSalt = generateSalt();
+    QByteArray data = newSalt.toUtf8() + newPassword.toUtf8();
+    QString newHash = QString::fromLatin1(
+        QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex()
+    );
+
+    // 不对，这样 DB 又要重新哈希一次。让我简化：
+    // UserManager::resetPassword 生成新盐，哈希新密码，直接 UPDATE 数据库
+
+    QSqlDatabase db = m_db->database();
+    QSqlQuery q(db);
+
+    // 先校验答案
+    q.prepare("SELECT sec_answer_hash FROM users WHERE username = :u");
+    q.bindValue(":u", username);
+    if (!q.exec() || !q.next())
+        return false;
+
+    QString storedAnswerHash = q.value(0).toString();
+    if (storedAnswerHash.isEmpty() || storedAnswerHash != answerHash)
+        return false;
+
+    // 生成新密码哈希
+    QString salt = generateSalt();
+    QString hash = hashPassword(newPassword, salt);
+
+    QSqlQuery up(db);
+    up.prepare("UPDATE users SET password_hash = :hash, salt = :salt WHERE username = :u");
+    up.bindValue(":hash", hash);
+    up.bindValue(":salt", salt);
+    up.bindValue(":u", username);
+
+    if (!up.exec()) {
+        qWarning() << "[UserManager] 重置密码 UPDATE 失败:" << up.lastError().text();
+        return false;
+    }
+    return up.numRowsAffected() > 0;
+}
+
+bool UserManager::changePassword(int uid, const QString &oldPassword, const QString &newPassword)
+{
+    QSqlDatabase db = m_db->database();
+    QSqlQuery q(db);
+
+    // 校验旧密码
+    q.prepare("SELECT password_hash, salt FROM users WHERE uid = :uid");
+    q.bindValue(":uid", uid);
+    if (!q.exec() || !q.next())
+        return false;
+
+    QString storedHash = q.value(0).toString();
+    QString storedSalt = q.value(1).toString();
+
+    if (hashPassword(oldPassword, storedSalt) != storedHash)
+        return false;
+
+    // 更新为新密码
+    QString newSalt = generateSalt();
+    QString newHash = hashPassword(newPassword, newSalt);
+
+    QSqlQuery up(db);
+    up.prepare("UPDATE users SET password_hash = :hash, salt = :salt WHERE uid = :uid");
+    up.bindValue(":hash", newHash);
+    up.bindValue(":salt", newSalt);
+    up.bindValue(":uid", uid);
+
+    if (!up.exec()) {
+        qWarning() << "[UserManager] 修改密码 UPDATE 失败:" << up.lastError().text();
+        return false;
+    }
+    return up.numRowsAffected() > 0;
 }
