@@ -265,9 +265,8 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     // 用户名（只读）
     m_userLabel = new QLabel(m_username);
     m_userLabel->setStyleSheet("color: #999; font-size: 14px;");
-    m_userLabel->setEnabled(false);
     QWidget *userItem = createSettingItem("用户名", m_userLabel);
-    userItem->setStyleSheet("background-color: #f0f0f0;");
+    userItem->setStyleSheet("background-color: white;");
     mainLayout->addWidget(userItem);
 
     addSeparator(mainLayout);
@@ -275,9 +274,8 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     // 角色（只读）
     m_roleLabel = new QLabel(m_role == "doctor" ? "医生" : "患者");
     m_roleLabel->setStyleSheet("color: #999; font-size: 14px;");
-    m_roleLabel->setEnabled(false);
     QWidget *roleItem = createSettingItem("角色", m_roleLabel);
-    roleItem->setStyleSheet("background-color: #f0f0f0;");
+    roleItem->setStyleSheet("background-color: white;");
     mainLayout->addWidget(roleItem);
 
     // 账号安全分组
@@ -302,7 +300,7 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     passItem->setObjectName("passItem");
     passItem->setStyleSheet(
         "#passItem { background-color: white; }"
-        "#passItem:hover { background-color: #f5f5f5; }"
+        "#passItem:hover { background-color: #f9f9f9; }"
     );
 
     // 用透明按钮覆盖整个区域接收点击
@@ -440,6 +438,9 @@ void ProfileDialog::applyStyles()
         // 下拉框 — 主体
         "QComboBox { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QComboBox:focus { border-bottom: 1px solid #07c160; }"
+        "QComboBox::drop-down { border: none; width: 20px; }"
+        "QComboBox::down-arrow { width: 0; height: 0; border-left: 5px solid transparent; "
+        "  border-right: 5px solid transparent; border-top: 6px solid #999999; }"
 
         // 下拉框 — 弹出列表（关键：强制白色背景）
         "QComboBox QAbstractItemView { background-color: #ffffff; border: 1px solid #e0e0e0; "
@@ -451,6 +452,9 @@ void ProfileDialog::applyStyles()
         // 日期编辑框
         "QDateEdit { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QDateEdit:focus { border-bottom: 1px solid #07c160; }"
+        "QDateEdit::drop-down { border: none; width: 20px; }"
+        "QDateEdit::down-arrow { width: 0; height: 0; border-left: 5px solid transparent; "
+        "  border-right: 5px solid transparent; border-top: 6px solid #999999; }"
 
         // 日历弹窗（关键：强制白色主题）
         "QCalendarWidget { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 4px; }"
