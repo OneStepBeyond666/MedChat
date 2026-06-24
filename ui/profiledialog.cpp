@@ -100,10 +100,13 @@ ProfileDialog::ProfileDialog(Mode mode,
             view->setPalette(viewPal);
         }
 
-        // QDateEdit：强制白色 Palette（日历弹窗）
+        // QDateEdit：强制白色 Palette + Fusion（日历弹窗）
+        m_birthdayEdit->setStyle(QStyleFactory::create("Fusion"));
         QPalette datePal = m_birthdayEdit->palette();
         datePal.setColor(QPalette::Base, Qt::white);
         datePal.setColor(QPalette::Text, QColor("#333333"));
+        datePal.setColor(QPalette::Button, Qt::white);
+        datePal.setColor(QPalette::WindowText, QColor("#333333"));
         m_birthdayEdit->setPalette(datePal);
 
         // 事件过滤器：日历弹窗是延迟创建的，需要在显示时再强制设 Palette
@@ -190,30 +193,16 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     );
     updateAvatarDisplay();
 
-    // 悬停遮罩层：半透明黑色 + "更换头像" 文字
-    m_avatarHoverOverlay = new QLabel(m_avatarLabel);
-    m_avatarHoverOverlay->setFixedSize(100, 100);
-    m_avatarHoverOverlay->setAlignment(Qt::AlignCenter);
-    m_avatarHoverOverlay->setText("更换头像");
-    m_avatarHoverOverlay->setStyleSheet(
-        "background: rgba(0,0,0,0.45); color: white; font-size: 13px; "
-        "font-weight: bold; border-radius: 50px;"
-    );
-    m_avatarHoverOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
-    m_avatarHoverOverlay->hide();
-
-    // 透明按钮覆盖头像
+    // 透明按钮覆盖头像，hover时显示半透明遮罩效果
     QPushButton *avatarBtn = new QPushButton(avatarArea);
     avatarBtn->setFixedSize(100, 100);
     avatarBtn->setStyleSheet(
         "QPushButton { background: transparent; border: none; border-radius: 50px; }"
+        "QPushButton:hover { background: rgba(0,0,0,0.35); }"
     );
     avatarBtn->setCursor(Qt::PointingHandCursor);
     connect(avatarBtn, &QPushButton::clicked, this, &ProfileDialog::onAvatarClicked);
     avatarBtn->move(16, 16);
-    // 通过事件过滤器检测鼠标进入/离开头像按钮
-    avatarBtn->setProperty("avatarBtn", true);
-    avatarBtn->installEventFilter(this);
 
     avatarLayout->addWidget(m_avatarLabel);
     avatarLayout->addStretch();
@@ -461,11 +450,8 @@ void ProfileDialog::applyStyles()
         "QComboBox { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QComboBox:focus { border-bottom: 1px solid #07c160; }"
 
-        // 下拉框 — 箭头按钮
-        "QComboBox::drop-down { border: none; width: 24px; subcontrol-origin: padding; subcontrol-position: center right; }"
-        "QComboBox::down-arrow { image: none; border-left: 4px solid transparent; border-right: 4px solid transparent; "
-        "  border-top: 5px solid #999; margin-right: 4px; }"
-        "QComboBox::down-arrow:hover { border-top-color: #07c160; }"
+        // 下拉框 — 箭头按钮区域
+        "QComboBox::drop-down { border: none; width: 20px; subcontrol-origin: padding; subcontrol-position: center right; }"
 
         // 下拉框 — 弹出列表（关键：强制白色背景）
         "QComboBox QAbstractItemView { background-color: #ffffff; border: 1px solid #e0e0e0; "
@@ -477,10 +463,7 @@ void ProfileDialog::applyStyles()
         // 日期编辑框
         "QDateEdit { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QDateEdit:focus { border-bottom: 1px solid #07c160; }"
-        "QDateEdit::drop-down { border: none; width: 24px; subcontrol-origin: padding; subcontrol-position: center right; }"
-        "QDateEdit::down-arrow { image: none; border-left: 4px solid transparent; border-right: 4px solid transparent; "
-        "  border-top: 5px solid #999; margin-right: 4px; }"
-        "QDateEdit::down-arrow:hover { border-top-color: #07c160; }"
+        "QDateEdit::drop-down { border: none; width: 20px; subcontrol-origin: padding; subcontrol-position: center right; }"
 
         // 日历弹窗（关键：强制白色主题）
         "QCalendarWidget { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 4px; }"
@@ -533,24 +516,19 @@ void ProfileDialog::updateAvatarDisplay()
 void ProfileDialog::onAvatarClicked()
 {
     QPixmap cropped = AvatarCropper::selectAndCrop(this, Constants::AVATAR_DISPLAY_SIZE);
-    if (cropped.isNull()) {
-        if (m_avatarHoverOverlay) m_avatarHoverOverlay->hide();
+    if (cropped.isNull())
         return;
-    }
 
     QByteArray pngBytes = AvatarCropper::toPngBytes(cropped);
     if (pngBytes.size() > Constants::AVATAR_MAX_SIZE) {
         QMessageBox::warning(this, "头像过大",
             "头像文件不能超过 2MB，请选择更小的图片或裁剪后再试。");
-        if (m_avatarHoverOverlay) m_avatarHoverOverlay->hide();
         return;
     }
 
     m_newAvatarData = pngBytes;
     m_avatarChanged = true;
     updateAvatarDisplay();
-    if (m_avatarHoverOverlay)
-        m_avatarHoverOverlay->hide();
 }
 
 void ProfileDialog::onNickTextChanged(const QString &text)
@@ -606,6 +584,9 @@ void ProfileDialog::forceCalendarLightPalette()
     if (!cal)
         return;
 
+    // 关键：对日历控件本身也设置 Fusion 样式，否则弹窗继承系统深色主题
+    cal->setStyle(QStyleFactory::create("Fusion"));
+
     QPalette pal;
     pal.setColor(QPalette::Base, Qt::white);
     pal.setColor(QPalette::Window, Qt::white);
@@ -613,16 +594,23 @@ void ProfileDialog::forceCalendarLightPalette()
     pal.setColor(QPalette::ButtonText, QColor("#333333"));
     pal.setColor(QPalette::HighlightedText, Qt::white);
     pal.setColor(QPalette::Highlight, QColor("#07c160"));
+    pal.setColor(QPalette::Button, Qt::white);
+    pal.setColor(QPalette::WindowText, QColor("#333333"));
     cal->setPalette(pal);
 
-    // 强制日历内部所有子控件也使用白色
+    // 递归强制日历内部所有子控件使用白色 + Fusion
     for (QObject *child : cal->children()) {
         if (QWidget *w = qobject_cast<QWidget*>(child)) {
-            QPalette childPal = w->palette();
+            w->setStyle(QStyleFactory::create("Fusion"));
+            QPalette childPal;
             childPal.setColor(QPalette::Base, Qt::white);
             childPal.setColor(QPalette::Window, Qt::white);
             childPal.setColor(QPalette::Text, QColor("#333333"));
             childPal.setColor(QPalette::ButtonText, QColor("#333333"));
+            childPal.setColor(QPalette::Button, Qt::white);
+            childPal.setColor(QPalette::WindowText, QColor("#333333"));
+            childPal.setColor(QPalette::HighlightedText, Qt::white);
+            childPal.setColor(QPalette::Highlight, QColor("#07c160"));
             w->setPalette(childPal);
         }
     }
@@ -631,43 +619,11 @@ void ProfileDialog::forceCalendarLightPalette()
 bool ProfileDialog::eventFilter(QObject *obj, QEvent *event)
 {
     // 当用户点击 QDateEdit 弹出日历时，日历控件是延迟创建的，
-    // 此时再强制设置其 Palette，确保不会被系统深色模式覆盖
+    // 此时再强制设置其 Palette + Fusion 样式，确保不会被系统深色模式覆盖
     if (obj == m_birthdayEdit && event->type() == QEvent::MouseButtonPress) {
         QMetaObject::invokeMethod(this, [this]() {
             forceCalendarLightPalette();
         }, Qt::QueuedConnection);
     }
-    // 头像按钮：鼠标进入显示遮罩，离开隐藏
-    if (obj->property("avatarBtn").toBool()) {
-        if (event->type() == QEvent::Enter && m_avatarHoverOverlay) {
-            m_avatarHoverOverlay->show();
-            m_avatarHoverOverlay->raise();
-        } else if (event->type() == QEvent::Leave && m_avatarHoverOverlay) {
-            m_avatarHoverOverlay->hide();
-        }
-    }
     return QDialog::eventFilter(obj, event);
-}
-
-void ProfileDialog::enterEvent(QEvent *event)
-{
-    // 检测鼠标是否在头像按钮区域内
-    if (m_mode == SelfProfile) {
-        QPoint globalPos = QCursor::pos();
-        QPoint btnTopLeft = m_avatarLabel->mapToGlobal(QPoint(0, 0));
-        QRect btnRect(btnTopLeft, m_avatarLabel->size());
-        if (btnRect.contains(globalPos) && m_avatarHoverOverlay) {
-            m_avatarHoverOverlay->show();
-            m_avatarHoverOverlay->raise();
-        }
-    }
-    QDialog::enterEvent(event);
-}
-
-void ProfileDialog::leaveEvent(QEvent *event)
-{
-    // 鼠标离开对话框时隐藏遮罩
-    if (m_avatarHoverOverlay)
-        m_avatarHoverOverlay->hide();
-    QDialog::leaveEvent(event);
 }

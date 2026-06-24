@@ -55,8 +55,6 @@ private:
     QWidget* createClickableItem(const QString &label, const QString &value);
     void addSeparator(QVBoxLayout *layout);
     bool eventFilter(QObject *obj, QEvent *event) override;
-    void enterEvent(QEvent *event) override;
-    void leaveEvent(QEvent *event) override;
 
     Mode m_mode;
     QString m_username;
@@ -74,7 +72,6 @@ private:
 
     // UI
     QLabel *m_avatarLabel;
-    QLabel *m_avatarHoverOverlay;
     QLineEdit *m_nickEdit;
     QLabel *m_nickCounter;
     QLineEdit *m_sigEdit;
