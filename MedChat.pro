@@ -29,7 +29,8 @@ SOURCES += \
     ui/profiledialog.cpp \
     ui/sessionlistwidget.cpp \
     ui/friendrequestwidget.cpp \
-    ui/friendrequestnotification.cpp
+    ui/friendrequestnotification.cpp \
+    ui/nearbypeoplewidget.cpp
 
 HEADERS += \
     common/protocol.h \
@@ -51,7 +52,8 @@ HEADERS += \
     ui/profiledialog.h \
     ui/sessionlistwidget.h \
     ui/friendrequestwidget.h \
-    ui/friendrequestnotification.h
+    ui/friendrequestnotification.h \
+    ui/nearbypeoplewidget.h
 
 RESOURCES += \
     resources/style.qrc

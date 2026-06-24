@@ -17,53 +17,53 @@
 struct PinyinBound { unsigned short gbk; char initial; };
 
 static const PinyinBound s_pinyinTable[] = {
-    // A
-    {0xA1A3,'A'},{0xA3E2,'A'},
-    // B
-    {0xB0A1,'B'},{0xB0C4,'B'},{0xB2B6,'B'},{0xB3BB,'B'},{0xB4E8,'B'},
-    // C
-    {0xB5A6,'C'},{0xB5E7,'C'},{0xB6A1,'C'},{0xB6C7,'C'},{0xB7A1,'C'},
-    // D
-    {0xB8A1,'D'},{0xB9A1,'D'},{0xBADE,'D'},{0xBBBF,'D'},
-    // E
-    {0xBDA1,'E'},
-    // F
-    {0xBFA1,'F'},
-    // G
-    {0xC0A1,'G'},{0xC1A1,'G'},{0xC3A1,'G'},
-    // H
-    {0xC5A1,'H'},{0xC6A1,'H'},{0xC7A1,'H'},{0xC8A1,'H'},
-    // J
-    {0xC9A1,'J'},{0xCAB6,'J'},{0xCCE2,'J'},
-    // K
-    {0xCDFA,'K'},
-    // L
-    {0xCEA1,'L'},{0xD0A1,'L'},
-    // M
-    {0xD1A1,'M'},{0xD3A1,'M'},
-    // N
-    {0xD4A1,'N'},
-    // O (no common Chinese chars, skip)
-    // P
-    {0xD5A1,'P'},{0xD6A1,'P'},
-    // Q
-    {0xD7A1,'Q'},{0xD8A1,'Q'},
-    // R
-    {0xD9A1,'R'},
-    // S
-    {0xDAA1,'S'},{0xDBA1,'S'},{0xDCA1,'S'},{0xDDA1,'S'},{0xDEA1,'S'},
-    // T
-    {0xDFA1,'T'},
-    // W
-    {0xE0A1,'W'},{0xE1A1,'W'},
-    // X
-    {0xE2A1,'X'},{0xE3A1,'X'},{0xE4A1,'X'},
-    // Y
-    {0xE5A1,'Y'},{0xE6A1,'Y'},{0xE7A1,'Y'},{0xE8A1,'Y'},
-    // Z
-    {0xE9A1,'Z'},{0xEAA1,'Z'},{0xEBA1,'Z'},{0xECA1,'Z'},
-    {0xEDA1,'Z'},{0xEEA1,'Z'},{0xEFA1,'Z'},{0xF0A1,'Z'},
-    {0xF1A1,'Z'},{0xF2A1,'Z'},
+    // A (啊 0xB0A1 起)
+    {0xB0A1,'A'},
+    // B (芭 0xB0C5 起)
+    {0xB0C5,'B'},
+    // C (擦 0xB2C1 起)
+    {0xB2C1,'C'},
+    // D (搭 0xB4E6 起)
+    {0xB4E6,'D'},
+    // E (蛾 0xB6E6 起)
+    {0xB6E6,'E'},
+    // F (发 0xB7B6 起)
+    {0xB7B6,'F'},
+    // G (噶 0xB8A6 起)
+    {0xB8A6,'G'},
+    // H (哈 0xB9A6 起)
+    {0xB9A6,'H'},
+    // J (击 0xBBB7 起)
+    {0xBBB7,'J'},
+    // K (喀 0xBFA6 起)
+    {0xBFA6,'K'},
+    // L (垃 0xC0B6 起)
+    {0xC0B6,'L'},
+    // M (妈 0xC2B8 起)
+    {0xC2B8,'M'},
+    // N (拿 0xC4B6 起)
+    {0xC4B6,'N'},
+    // O (哦 0xC5B6 起)
+    {0xC5B6,'O'},
+    // P (啪 0xC5B6 起 — 实际与O相近，但按GBK排序)
+    // 注: O和P在GBK中非常接近，此处按标准表处理
+    {0xC6B6,'P'},
+    // Q (期 0xC8B6 起)
+    {0xC8B6,'Q'},
+    // R (然 0xC9A6 起)
+    {0xC9A6,'R'},
+    // S (撒 0xCBFA 起)
+    {0xCBFA,'S'},
+    // T (塌 0xCDEA 起)
+    {0xCDEA,'T'},
+    // W (挖 0xCEF4 起 — 无U/V)
+    {0xCEF4,'W'},
+    // X (昔 0xD1B6 起)
+    {0xD1B6,'X'},
+    // Y (压 0xD4B6 起)
+    {0xD4B6,'Y'},
+    // Z (匝 0xD5B6 起)
+    {0xD5B6,'Z'},
     // sentinel
     {0xFFFF,'#'}
 };
@@ -196,6 +196,45 @@ void ContactListWidget::rebuildList()
         frItem->setData(Qt::UserRole, "__friend_requests__");
         m_listWidget->addItem(frItem);
         m_listWidget->setItemWidget(frItem, frWidget);
+    }
+
+    // ========== "附近的人" 入口 ==========
+    if (m_filterText.isEmpty()) {
+        QWidget *npWidget = new QWidget;
+        QHBoxLayout *npLayout = new QHBoxLayout(npWidget);
+        npLayout->setContentsMargins(4, 4, 8, 4);
+        npLayout->setSpacing(8);
+
+        // 图标
+        QLabel *npIcon = new QLabel;
+        npIcon->setFixedSize(40, 40);
+        npIcon->setScaledContents(true);
+        npIcon->setPixmap(AvatarCropper::defaultAvatar(
+            QString::fromUtf8("\xe9\x99\x84\xe8\xbf\x91"), 40));
+        npLayout->addWidget(npIcon);
+
+        // 名称
+        QLabel *npNameLabel = new QLabel(QString::fromUtf8(
+            "\xe9\x99\x84\xe8\xbf\x91\xe7\x9a\x84\xe4\xba\xba"));  // "附近的人"
+        npNameLabel->setStyleSheet("font-size: 14px; color: #333;");
+        npLayout->addWidget(npNameLabel, 1);
+
+        // 人数徽标
+        if (m_nearbyPeopleCount > 0) {
+            QLabel *npBadge = new QLabel(QString::number(m_nearbyPeopleCount));
+            npBadge->setFixedSize(20, 20);
+            npBadge->setAlignment(Qt::AlignCenter);
+            npBadge->setStyleSheet(
+                "background: #576B95; color: white; border-radius: 10px; "
+                "font-size: 11px; font-weight: bold;");
+            npLayout->addWidget(npBadge);
+        }
+
+        QListWidgetItem *npItem = new QListWidgetItem;
+        npItem->setSizeHint(QSize(220, 48));
+        npItem->setData(Qt::UserRole, "__nearby_people__");
+        m_listWidget->addItem(npItem);
+        m_listWidget->setItemWidget(npItem, npWidget);
     }
 
     // ========== 文件传输助手（始终置顶） ==========
@@ -353,11 +392,21 @@ void ContactListWidget::setFriendRequestCount(int count)
     rebuildList();
 }
 
+void ContactListWidget::setNearbyPeopleCount(int count)
+{
+    m_nearbyPeopleCount = count;
+    rebuildList();
+}
+
 void ContactListWidget::onItemClicked(QListWidgetItem *item)
 {
     QString username = item->data(Qt::UserRole).toString();
     if (username == "__friend_requests__") {
         emit friendRequestEntryClicked();
+        return;
+    }
+    if (username == "__nearby_people__") {
+        emit nearbyPeopleEntryClicked();
         return;
     }
     emit contactSelected(username);

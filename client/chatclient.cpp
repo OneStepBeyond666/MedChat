@@ -251,43 +251,44 @@ void ChatClient::handleContactList(const QJsonObject &msg)
 void ChatClient::handleOnlineStatus(const QJsonObject &msg)
 {
     QJsonArray arr = msg["users"].toArray();
-    // 更新现有联系人在线状态
+
+    // 1. 更新全量在线用户表（供"附近的人"使用）
+    m_onlineUsers.clear();
+    QStringList onlineNames;
     for (const QJsonValue &val : arr) {
         QJsonObject u = val.toObject();
         QString username = u["username"].toString();
-        if (m_contacts.contains(username)) {
-            m_contacts[username].online = true;
-            QString nick = u["nickname"].toString();
-            if (!nick.isEmpty())
-                m_contacts[username].nickname = nick;
-            // 更新头像
-            QString avatarB64 = u["avatar_base64"].toString();
-            if (!avatarB64.isEmpty())
-                m_contacts[username].avatarData = QByteArray::fromBase64(avatarB64.toLatin1());
-        } else {
-            ContactInfo ci;
-            ci.username = username;
-            ci.nickname = u["nickname"].toString();
-            if (ci.nickname.isEmpty()) ci.nickname = ci.username;
-            ci.role = u["role"].toString();
-            ci.online = true;
-            QString avatarB64 = u["avatar_base64"].toString();
-            if (!avatarB64.isEmpty())
-                ci.avatarData = QByteArray::fromBase64(avatarB64.toLatin1());
-            m_contacts[username] = ci;
-        }
+        onlineNames << username;
+
+        ContactInfo ci;
+        ci.username = username;
+        ci.nickname = u["nickname"].toString();
+        if (ci.nickname.isEmpty()) ci.nickname = ci.username;
+        ci.role = u["role"].toString();
+        ci.online = true;
+        QString avatarB64 = u["avatar_base64"].toString();
+        if (!avatarB64.isEmpty())
+            ci.avatarData = QByteArray::fromBase64(avatarB64.toLatin1());
+        m_onlineUsers[username] = ci;
     }
-    // 不在列表中的联系人设为离线
-    QStringList onlineNames;
-    for (const QJsonValue &val : arr) {
-        onlineNames << val.toObject()["username"].toString();
-    }
+
+    // 2. 仅更新好友的在线状态（不把陌生人塞进 m_contacts）
     for (auto it = m_contacts.begin(); it != m_contacts.end(); ++it) {
-        if (!onlineNames.contains(it.key())) {
+        if (onlineNames.contains(it.key())) {
+            it->online = true;
+            // 同步昵称和头像（以防好友修改了资料）
+            const ContactInfo &online = m_onlineUsers.value(it.key());
+            if (!online.nickname.isEmpty())
+                it->nickname = online.nickname;
+            if (!online.avatarData.isEmpty())
+                it->avatarData = online.avatarData;
+        } else {
             it->online = false;
         }
     }
+
     emit contactListUpdated(m_contacts);
+    emit onlineUsersUpdated(m_onlineUsers);
 }
 
 void ChatClient::handleMessage(const QJsonObject &msg)

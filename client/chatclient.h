@@ -62,6 +62,7 @@ public:
     QString myNickname() const { return m_myNickname; }
     QByteArray myAvatarData() const { return m_myAvatarData; }
     QMap<QString, ContactInfo> contacts() const { return m_contacts; }
+    QMap<QString, ContactInfo> onlineUsers() const { return m_onlineUsers; }
     bool isTransferActive(const QString &fileId) const;
 
 signals:
@@ -92,6 +93,7 @@ signals:
                                const QString &text, const QByteArray &avatarData, bool isSynced);
     void friendResponseReceived(bool success, const QString &username, const QString &message);
     void friendRequestCountChanged(int count);    // 待处理好友请求数量变化
+    void onlineUsersUpdated(const QMap<QString, ContactInfo> &onlineUsers);
 
 private slots:
     void onConnected();
@@ -130,7 +132,8 @@ private:
     QString m_role;
     QString m_myNickname;
     QByteArray m_myAvatarData;
-    QMap<QString, ContactInfo> m_contacts;
+    QMap<QString, ContactInfo> m_contacts;      // 仅好友
+    QMap<QString, ContactInfo> m_onlineUsers;   // 所有在线用户（含好友和陌生人）
     QMap<QString, FileTransferInfo> m_fileTransfers;
 
     // 文件发送相关

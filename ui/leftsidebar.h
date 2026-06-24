@@ -33,6 +33,7 @@ public:
     QString selectedContact() const;
     void clearSelection();
     void setFriendRequestCount(int count);
+    void setNearbyPeopleCount(int count);
 
 signals:
     void contactSelected(const QString &username);
@@ -40,6 +41,7 @@ signals:
     void avatarClicked();
     void addFriendRequested();
     void friendRequestEntryClicked();
+    void nearbyPeopleEntryClicked();
 
 private slots:
     void onIconClicked(int id);

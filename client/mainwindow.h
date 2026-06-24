@@ -15,6 +15,7 @@ class ChatWidget;
 class ProfileDialog;
 class FriendRequestWidget;
 class FriendRequestNotification;
+class NearbyPeopleWidget;
 #include "chatclient.h"
 
 class MainWindow : public QMainWindow
@@ -59,6 +60,9 @@ private slots:
     void onAcceptFriendRequest(int requestId, const QString &fromUsername);
     void onRejectFriendRequest(int requestId, const QString &fromUsername);
     void onFriendRequestCountChanged(int count);
+    void onOnlineUsersUpdated(const QMap<QString, ContactInfo> &onlineUsers);
+    void onNearbyPeopleEntryClicked();
+    void onNearbyAddFriendRequested(const QString &username);
     void onDisconnected();
     void onAvatarClicked();
     void onContactProfileChanged(const QString &username, const QString &nickname,
@@ -88,6 +92,7 @@ private:
     QStackedWidget *m_chatStack;
     ChatWidget *m_chatWidget;
     FriendRequestWidget *m_friendRequestWidget;
+    NearbyPeopleWidget *m_nearbyPeopleWidget;
 
     // 好友请求: requestId -> fromUsername
     QMap<int, QString> m_pendingFriendRequests;

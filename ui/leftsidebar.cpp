@@ -190,6 +190,8 @@ void LeftSidebar::setupUI()
             this, &LeftSidebar::onContactClicked);
     connect(m_contactList, &ContactListWidget::friendRequestEntryClicked,
             this, &LeftSidebar::friendRequestEntryClicked);
+    connect(m_contactList, &ContactListWidget::nearbyPeopleEntryClicked,
+            this, &LeftSidebar::nearbyPeopleEntryClicked);
 }
 
 void LeftSidebar::applyStyles()
@@ -267,6 +269,11 @@ void LeftSidebar::clearSelection()
 void LeftSidebar::setFriendRequestCount(int count)
 {
     m_contactList->setFriendRequestCount(count);
+}
+
+void LeftSidebar::setNearbyPeopleCount(int count)
+{
+    m_contactList->setNearbyPeopleCount(count);
 }
 
 // ============================================================

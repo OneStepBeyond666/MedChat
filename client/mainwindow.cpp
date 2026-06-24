@@ -9,6 +9,7 @@
 #include "ui/chatwidget.h"
 #include "ui/friendrequestwidget.h"
 #include "ui/friendrequestnotification.h"
+#include "ui/nearbypeoplewidget.h"
 #include <QSplitter>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -58,6 +59,7 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_client, &ChatClient::offlineSyncDone, this, &MainWindow::onOfflineSyncDone);
     connect(m_client, &ChatClient::friendRequestReceived, this, &MainWindow::onFriendRequestReceived);
     connect(m_client, &ChatClient::friendRequestCountChanged, this, &MainWindow::onFriendRequestCountChanged);
+    connect(m_client, &ChatClient::onlineUsersUpdated, this, &MainWindow::onOnlineUsersUpdated);
     connect(m_client, &ChatClient::friendResponseReceived, this, [this](bool success, const QString &username, const QString &message) {
         if (success) {
             statusBar()->showMessage(message, 5000);
@@ -77,9 +79,11 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_sidebar, &LeftSidebar::avatarClicked, this, &MainWindow::onAvatarClicked);
     connect(m_sidebar, &LeftSidebar::addFriendRequested, this, &MainWindow::onAddFriendRequested);
     connect(m_sidebar, &LeftSidebar::friendRequestEntryClicked, this, &MainWindow::onFriendRequestEntryClicked);
+    connect(m_sidebar, &LeftSidebar::nearbyPeopleEntryClicked, this, &MainWindow::onNearbyPeopleEntryClicked);
 
     connect(m_friendRequestWidget, &FriendRequestWidget::acceptRequested, this, &MainWindow::onAcceptFriendRequest);
     connect(m_friendRequestWidget, &FriendRequestWidget::rejectRequested, this, &MainWindow::onRejectFriendRequest);
+    connect(m_nearbyPeopleWidget, &NearbyPeopleWidget::addFriendRequested, this, &MainWindow::onNearbyAddFriendRequested);
 
     // 初始化侧栏资料
     m_sidebar->setSelfProfile(m_nickname, m_avatarData);
@@ -130,6 +134,10 @@ void MainWindow::setupUI()
     // Page 2: 好友请求页
     m_friendRequestWidget = new FriendRequestWidget;
     m_chatStack->addWidget(m_friendRequestWidget);
+
+    // Page 3: 附近的人页
+    m_nearbyPeopleWidget = new NearbyPeopleWidget;
+    m_chatStack->addWidget(m_nearbyPeopleWidget);
 
     m_chatStack->setCurrentIndex(0);  // 初始显示占位页
 
@@ -759,6 +767,51 @@ void MainWindow::loadFriendRequests()
 
     m_friendRequestWidget->setRequests(requests);
     m_sidebar->setFriendRequestCount(requests.size());
+}
+
+void MainWindow::onOnlineUsersUpdated(const QMap<QString, ContactInfo> &onlineUsers)
+{
+    // 计算差集：在线用户 - 好友 - 自己 = 附近的人（陌生人）
+    QMap<QString, ContactInfo> friends = m_client->contacts();
+    QMap<QString, ContactInfo> strangers;
+    for (auto it = onlineUsers.constBegin(); it != onlineUsers.constEnd(); ++it) {
+        if (it.key() == m_username) continue;       // 排除自己
+        if (friends.contains(it.key())) continue;   // 排除好友
+        strangers[it.key()] = it.value();
+    }
+    m_sidebar->setNearbyPeopleCount(strangers.size());
+
+    // 如果附近的人面板当前正在显示，刷新内容
+    if (m_chatStack->currentIndex() == 3) {
+        m_nearbyPeopleWidget->setStrangers(strangers);
+    }
+}
+
+void MainWindow::onNearbyPeopleEntryClicked()
+{
+    // toggle：已在附近的人页 → 回到占位页
+    if (m_chatStack->currentIndex() == 3) {
+        m_chatStack->setCurrentIndex(0);
+        m_sidebar->clearSelection();
+        return;
+    }
+    // 计算差集并显示
+    QMap<QString, ContactInfo> onlineUsers = m_client->onlineUsers();
+    QMap<QString, ContactInfo> friends = m_client->contacts();
+    QMap<QString, ContactInfo> strangers;
+    for (auto it = onlineUsers.constBegin(); it != onlineUsers.constEnd(); ++it) {
+        if (it.key() == m_username) continue;
+        if (friends.contains(it.key())) continue;
+        strangers[it.key()] = it.value();
+    }
+    m_nearbyPeopleWidget->setStrangers(strangers);
+    m_chatStack->setCurrentIndex(3);
+}
+
+void MainWindow::onNearbyAddFriendRequested(const QString &username)
+{
+    m_client->sendFriendRequest(username);
+    statusBar()->showMessage("已向 " + displayName(username) + " 发送好友请求", 3000);
 }
 
 void MainWindow::onDisconnected()
