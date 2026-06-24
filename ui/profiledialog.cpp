@@ -303,11 +303,11 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     QHBoxLayout *passLayout = new QHBoxLayout(m_passItem);
     passLayout->setContentsMargins(16, 12, 16, 12);
     QLabel *passLabel = new QLabel("修改密码");
-    passLabel->setStyleSheet("font-size: 14px; color: #333;");
+    passLabel->setStyleSheet("font-size: 14px; color: #333; background: transparent;");
     passLayout->addWidget(passLabel);
     passLayout->addStretch();
     m_passArrow = new QLabel("›");
-    m_passArrow->setStyleSheet("font-size: 18px; color: #cccccc;");
+    m_passArrow->setStyleSheet("font-size: 18px; color: #cccccc; background: transparent;");
     passLayout->addWidget(m_passArrow);
     m_passItem->installEventFilter(this);
     mainLayout->addWidget(m_passItem);
