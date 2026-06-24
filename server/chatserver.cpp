@@ -86,6 +86,8 @@ void ChatServer::onMessageReceived(ClientHandler *handler, const QJsonObject &ms
         handleOfflineSyncAck(handler, msg);
     } else if (type == MsgType::UpdateProfile) {
         handleUpdateProfile(handler, msg);
+    } else if (type == MsgType::FriendRequest) {
+        handleFriendRequest(handler, msg);
     } else {
         qWarning() << "[未知消息] 类型:" << type;
     }
@@ -510,5 +512,67 @@ void ChatServer::handleUpdateProfile(ClientHandler *handler, const QJsonObject &
     for (ClientHandler *h : m_clients) {
         if (!h->username().isEmpty())
             h->sendMessage(broadcast);
+    }
+}
+
+void ChatServer::handleFriendRequest(ClientHandler *handler, const QJsonObject &msg)
+{
+    QString fromUsername = handler->username();
+    QString toUsername = msg["to"].toString();
+
+    if (fromUsername.isEmpty() || toUsername.isEmpty()) {
+        handler->sendMessage(Protocol::makeError("用户名不能为空"));
+        return;
+    }
+
+    if (fromUsername == toUsername) {
+        handler->sendMessage(Protocol::makeError("不能添加自己为好友"));
+        return;
+    }
+
+    int fromUid = m_userManager->getUidByUsername(fromUsername);
+    int toUid = m_userManager->getUidByUsername(toUsername);
+
+    if (fromUid <= 0) {
+        handler->sendMessage(Protocol::makeError("发送方用户不存在"));
+        return;
+    }
+    if (toUid <= 0) {
+        handler->sendMessage(Protocol::makeError("对方用户不存在"));
+        return;
+    }
+
+    if (m_serverDB->areFriends(fromUid, toUid)) {
+        handler->sendMessage(Protocol::makeError("你们已经是好友了"));
+        return;
+    }
+
+    if (m_serverDB->addFriendship(fromUid, toUid)) {
+        qDebug() << QString("[好友请求] %1 添加了 %2 为好友").arg(fromUsername, toUsername);
+
+        // 通知请求者
+        QJsonObject confirmMsg = Protocol::makeMsg(MsgType::FriendResponse);
+        confirmMsg["success"] = true;
+        confirmMsg["username"] = toUsername;
+        confirmMsg["message"] = QString("已成功添加 %1 为好友").arg(toUsername);
+        handler->sendMessage(confirmMsg);
+
+        // 如果对方在线，通知对方
+        ClientHandler *target = findClient(toUsername);
+        if (target) {
+            QJsonObject notifyMsg = Protocol::makeMsg(MsgType::FriendResponse);
+            notifyMsg["success"] = true;
+            notifyMsg["username"] = fromUsername;
+            notifyMsg["message"] = QString("%1 已添加你为好友").arg(fromUsername);
+            target->sendMessage(notifyMsg);
+
+            // 双方都重新获取联系人列表
+            sendContactList(handler);
+            sendContactList(target);
+        } else {
+            sendContactList(handler);
+        }
+    } else {
+        handler->sendMessage(Protocol::makeError("添加好友失败，请重试"));
     }
 }

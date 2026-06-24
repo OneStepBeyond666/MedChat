@@ -1,6 +1,7 @@
 #include "serverdb.h"
 #include "common/constants.h"
 #include <QDir>
+#include <QDateTime>
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QSqlRecord>
@@ -154,6 +155,44 @@ bool ServerDB::areFriends(int uid1, int uid2)
 
     qWarning() << "[ServerDB] areFriends 查询失败:" << q.lastError().text();
     return false;
+}
+
+bool ServerDB::addFriendship(int uid1, int uid2)
+{
+    if (uid1 <= 0 || uid2 <= 0 || uid1 == uid2) return false;
+
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+    qint64 now = QDateTime::currentMSecsSinceEpoch() / 1000;
+
+    // 插入 uid1 → uid2（若不存在）
+    q.prepare(
+        "INSERT OR IGNORE INTO friends (uid, friend_uid, status, created_at) "
+        "VALUES (:u1, :u2, 1, :ts)"
+    );
+    q.bindValue(":u1", uid1);
+    q.bindValue(":u2", uid2);
+    q.bindValue(":ts", now);
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] addFriendship 插入方向1失败:" << q.lastError().text();
+        return false;
+    }
+
+    // 插入 uid2 → uid1（若不存在）
+    q.prepare(
+        "INSERT OR IGNORE INTO friends (uid, friend_uid, status, created_at) "
+        "VALUES (:u2, :u1, 1, :ts)"
+    );
+    q.bindValue(":u1", uid1);
+    q.bindValue(":u2", uid2);
+    q.bindValue(":ts", now);
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] addFriendship 插入方向2失败:" << q.lastError().text();
+        return false;
+    }
+
+    qDebug() << QString("[ServerDB] 添加好友关系: uid=%1 <-> uid=%2").arg(uid1).arg(uid2);
+    return true;
 }
 
 QSqlDatabase ServerDB::cloneConnection(const QString &connName)

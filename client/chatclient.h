@@ -85,7 +85,8 @@ signals:
     void serverError(const QString &error);
     void offlineSyncDone();                       // 离线消息同步完成
     void strangerError(const QString &text);      // 陌生人拦截提示
-    void friendRequestReceived(const QString &from, const QString &text); // 好友请求
+    void friendRequestReceived(const QString &from, const QString &text);
+    void friendResponseReceived(bool success, const QString &username, const QString &message); // 好友请求
 
 private slots:
     void onConnected();
@@ -109,6 +110,7 @@ private:
     void handleOfflineSync(const QJsonObject &msg);
     void handleStrangerError(const QJsonObject &msg);
     void handleFriendRequest(const QJsonObject &msg);
+    void handleFriendResponse(const QJsonObject &msg);
     void handleProfileUpdated(const QJsonObject &msg);
 
     /// 离线消息去重：检查本地 DB 是否已有同条消息

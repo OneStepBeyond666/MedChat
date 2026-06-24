@@ -200,6 +200,7 @@ void ChatClient::processMessage(const QJsonObject &msg)
     else if (type == MsgType::OfflineSync)  handleOfflineSync(msg);
     else if (type == MsgType::ErrorStranger) handleStrangerError(msg);
     else if (type == MsgType::FriendRequest) handleFriendRequest(msg);
+    else if (type == MsgType::FriendResponse) handleFriendResponse(msg);
     else if (type == MsgType::ProfileUpdated) handleProfileUpdated(msg);
     else
         qWarning() << "[Client] Unknown message type:" << type;
@@ -498,6 +499,16 @@ void ChatClient::handleFriendRequest(const QJsonObject &msg)
 
     qDebug() << "[Client] 收到好友请求:" << from;
     emit friendRequestReceived(from, text);
+}
+
+void ChatClient::handleFriendResponse(const QJsonObject &msg)
+{
+    bool success = msg["success"].toBool();
+    QString username = msg["username"].toString();
+    QString message = msg["message"].toString();
+
+    qDebug() << "[Client] 好友请求响应:" << success << username << message;
+    emit friendResponseReceived(success, username, message);
 }
 
 void ChatClient::sendProfileUpdate(const QString &nickname, const QByteArray &avatarData)

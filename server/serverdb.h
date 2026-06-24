@@ -24,6 +24,9 @@ public:
     /// 好友关系查询：双方是否互为好友（双向 status=1）
     bool areFriends(int uid1, int uid2);
 
+    /// 添加好友关系：插入双向 status=1 记录，返回是否成功
+    bool addFriendship(int uid1, int uid2);
+
     /// 离线消息：保存离线消息
     bool saveOfflineMessage(int senderUid, int receiverUid, const QString &payload, int type = 0);
 

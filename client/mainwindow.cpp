@@ -56,6 +56,16 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_client, &ChatClient::strangerError, this, &MainWindow::onStrangerError);
     connect(m_client, &ChatClient::offlineSyncDone, this, &MainWindow::onOfflineSyncDone);
     connect(m_client, &ChatClient::friendRequestReceived, this, &MainWindow::onFriendRequestReceived);
+    connect(m_client, &ChatClient::friendResponseReceived, this, [this](bool success, const QString &username, const QString &message) {
+        if (success) {
+            statusBar()->showMessage(message, 5000);
+            // 刷新联系人列表和会话列表
+            m_sidebar->setContacts(m_client->contacts());
+            loadSessionsList();
+        } else {
+            statusBar()->showMessage("添加好友失败: " + message, 5000);
+        }
+    });
     connect(m_client, &ChatClient::disconnected, this, &MainWindow::onDisconnected);
 
     connect(m_client, &ChatClient::contactProfileChanged, this, &MainWindow::onContactProfileChanged);
