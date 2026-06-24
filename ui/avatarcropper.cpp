@@ -4,6 +4,29 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QBuffer>
+#include <QCryptographicHash>
+
+// ============================================================
+// 缓存基础设施
+// ============================================================
+
+QHash<QString, QPixmap> &AvatarCropper::roundCache()
+{
+    static QHash<QString, QPixmap> cache;
+    return cache;
+}
+
+QHash<QString, QPixmap> &AvatarCropper::defaultCache()
+{
+    static QHash<QString, QPixmap> cache;
+    return cache;
+}
+
+void AvatarCropper::clearCache()
+{
+    roundCache().clear();
+    defaultCache().clear();
+}
 
 QPixmap AvatarCropper::cropAndScale(const QImage &source, int targetSize)
 {
@@ -51,9 +74,20 @@ QByteArray AvatarCropper::toPngBytes(const QPixmap &pixmap)
 
 QPixmap AvatarCropper::roundAvatar(const QByteArray &data, int size)
 {
+    if (data.isEmpty())
+        return defaultAvatar("?", size);
+
+    // 缓存键: size + 数据哈希
+    QString key = QString::number(size) + ":"
+                  + QString::fromLatin1(QCryptographicHash::hash(data, QCryptographicHash::Md5).toHex().left(16));
+
+    auto &cache = roundCache();
+    auto it = cache.constFind(key);
+    if (it != cache.constEnd())
+        return *it;
+
     QPixmap src;
-    if (!data.isEmpty())
-        src.loadFromData(data);
+    src.loadFromData(data);
 
     if (src.isNull())
         return defaultAvatar("?", size);
@@ -75,11 +109,20 @@ QPixmap AvatarCropper::roundAvatar(const QByteArray &data, int size)
     painter.setClipPath(path);
     painter.drawPixmap(0, 0, cropped);
     painter.end();
+
+    cache.insert(key, result);
     return result;
 }
 
 QPixmap AvatarCropper::defaultAvatar(const QString &name, int size)
 {
+    // 缓存键: size + name
+    QString key = QString::number(size) + ":" + name;
+    auto &cache = defaultCache();
+    auto it = cache.constFind(key);
+    if (it != cache.constEnd())
+        return *it;
+
     // 根据名称 hash 选择颜色
     static const QColor colors[] = {
         QColor("#1AAD19"), QColor("#4C84FF"), QColor("#FF6B6B"),
@@ -111,5 +154,7 @@ QPixmap AvatarCropper::defaultAvatar(const QString &name, int size)
     painter.drawText(QRect(0, 0, size, size), Qt::AlignCenter, ch);
 
     painter.end();
+
+    cache.insert(key, result);
     return result;
 }

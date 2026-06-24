@@ -1,7 +1,7 @@
 @echo off
 call C:\Qt\Qt5.12.12\5.12.12\mingw73_64\bin\qtenv2.bat
 
-cd /d C:\Users\One_Step_Beyond\Documents\test\test\MedChat
+cd /d %~dp0
 
 if not exist build mkdir build
 cd build

@@ -78,9 +78,13 @@ QListWidgetItem *SessionListWidget::createSessionItem(const SessionInfo &s)
     if (s.lastTime > 0) {
         QDateTime dt = QDateTime::fromMSecsSinceEpoch(s.lastTime);
         QDateTime now = QDateTime::currentDateTime();
-        if (dt.date() == now.date())
+        QDate today = now.date();
+        QDate msgDate = dt.date();
+        if (msgDate == today)
             timeStr = dt.toString("HH:mm");
-        else if (dt.date().year() == now.date().year())
+        else if (msgDate == today.addDays(-1))
+            timeStr = QStringLiteral("昨天");
+        else if (msgDate.year() == today.year())
             timeStr = dt.toString("MM/dd");
         else
             timeStr = dt.toString("yyyy/MM/dd");
@@ -91,25 +95,25 @@ QListWidgetItem *SessionListWidget::createSessionItem(const SessionInfo &s)
 
     midLayout->addWidget(topRow);
 
-    // 预览行
-    QLabel *previewLabel = new QLabel(s.lastMsgPreview);
+    // 预览行（最多20字，超出显示...）
+    QString preview = s.lastMsgPreview;
+    if (preview.length() > 20)
+        preview = preview.left(20) + QStringLiteral("...");
+    QLabel *previewLabel = new QLabel(preview);
     previewLabel->setStyleSheet("font-size: 12px; color: #999;");
     previewLabel->setMaximumWidth(180);
     previewLabel->setWordWrap(false);
-    // 截断长文本
-    QFontMetrics fm(previewLabel->font());
-    QString elided = fm.elidedText(s.lastMsgPreview, Qt::ElideRight, 180);
-    previewLabel->setText(elided);
     midLayout->addWidget(previewLabel);
 
     layout->addWidget(midWidget, 1);
 
-    // 未读红点
+    // 未读红点（超过99显示99+）
     QLabel *badgeLabel = new QLabel;
     badgeLabel->setFixedSize(20, 20);
     badgeLabel->setAlignment(Qt::AlignCenter);
     if (s.unreadCount > 0) {
-        badgeLabel->setText(QString::number(s.unreadCount));
+        QString badgeText = (s.unreadCount > 99) ? QStringLiteral("99+") : QString::number(s.unreadCount);
+        badgeLabel->setText(badgeText);
         badgeLabel->setStyleSheet(
             "background-color: #F55545; color: white; border-radius: 10px; "
             "font-size: 11px; font-weight: bold;"

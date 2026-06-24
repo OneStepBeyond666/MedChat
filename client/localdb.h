@@ -69,6 +69,7 @@ public:
     void upsertSession(const SessionInfo &s);
     QVector<SessionInfo> loadSessions();
     void clearUnread(const QString &contactUid);
+    void incrementUnread(const QString &contactUid);
 
     // ---- meta.db: file_index ----
     void insertFileRecord(const FileRecord &r);

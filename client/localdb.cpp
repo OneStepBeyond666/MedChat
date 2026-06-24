@@ -284,6 +284,16 @@ void LocalDB::clearUnread(const QString &contactUid)
         qWarning() << "[LocalDB] clearUnread 失败:" << q.lastError().text();
 }
 
+void LocalDB::incrementUnread(const QString &contactUid)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_metaConnName);
+    QSqlQuery q(db);
+    q.prepare("UPDATE sessions SET unread_count = unread_count + 1 WHERE contact_uid = :cid");
+    q.bindValue(":cid", contactUid);
+    if (!q.exec())
+        qWarning() << "[LocalDB] incrementUnread 失败:" << q.lastError().text();
+}
+
 // ============================================================
 // file_index 操作
 // ============================================================

@@ -175,8 +175,9 @@ void MainWindow::onContactSelected(const QString &username)
     // 从 SQLite 加载历史消息（对方显示 nickname）
     loadMessagesFromDB(username, nick);
 
-    // 清除未读
+    // 清除未读并刷新会话列表
     LocalDB::instance().clearUnread(username);
+    loadSessionsList();
 }
 
 void MainWindow::loadMessagesFromDB(const QString &contactUid, const QString &partnerNick)
@@ -299,7 +300,23 @@ void MainWindow::onTextMessageReceived(const QString &from, const QString &to,
 
     // 持久化到 SQLite
     persistTextMessage(partner, text, timestamp, false);
-    updateSession(partner, text.left(50), timestamp);
+
+    // 更新会话预览和时间（不改变未读数）
+    SessionInfo si;
+    si.contactUid = partner;
+    si.username = partner;
+    si.lastMsgPreview = text.left(50);
+    si.lastTime = timestamp;
+    si.unreadCount = 0;  // upsert 不覆盖未读
+    LocalDB::instance().upsertSession(si);
+
+    // 非当前查看的联系人 → 递增未读数
+    if (m_chatWidget->currentPartner() != partner) {
+        LocalDB::instance().incrementUnread(partner);
+    }
+
+    // 刷新会话列表
+    loadSessionsList();
 
     // 仅当前对话联系人才实时显示
     if (m_chatWidget->currentPartner() == partner) {
@@ -485,7 +502,23 @@ void MainWindow::onFileOfferReceived(const QString &from, const QString &fileNam
     // 持久化文件消息到 SQLite
     qint64 now = QDateTime::currentMSecsSinceEpoch();
     persistFileMessage(from, fileName, fileId, now, false);
-    updateSession(from, "[文件] " + fileName, now);
+
+    // 更新会话预览和时间
+    SessionInfo si;
+    si.contactUid = from;
+    si.username = from;
+    si.lastMsgPreview = "[文件] " + fileName;
+    si.lastTime = now;
+    si.unreadCount = 0;
+    LocalDB::instance().upsertSession(si);
+
+    // 非当前查看的联系人 → 递增未读数
+    if (m_chatWidget->currentPartner() != from) {
+        LocalDB::instance().incrementUnread(from);
+    }
+
+    // 刷新会话列表
+    loadSessionsList();
 
     // 当前联系人 → 显示文件卡片；非当前 → 弹窗通知
     if (m_chatWidget->currentPartner() == from) {

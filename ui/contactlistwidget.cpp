@@ -72,6 +72,25 @@ void ContactListWidget::updateContacts(const QMap<QString, ContactInfo> &contact
         m_listWidget->setItemWidget(helperItem, helperWidget);
     }
 
+    // 辅助函数：添加分组标题
+    auto addGroupHeader = [this](const QString &title) {
+        QWidget *headerWidget = new QWidget;
+        QHBoxLayout *hLayout = new QHBoxLayout(headerWidget);
+        hLayout->setContentsMargins(12, 4, 8, 4);
+        hLayout->setSpacing(0);
+
+        QLabel *titleLabel = new QLabel(title);
+        titleLabel->setStyleSheet("font-size: 11px; color: #999; font-weight: bold;");
+        hLayout->addWidget(titleLabel);
+        hLayout->addStretch();
+
+        QListWidgetItem *headerItem = new QListWidgetItem;
+        headerItem->setSizeHint(QSize(260, 28));
+        headerItem->setFlags(Qt::NoItemFlags);  // 不可选中
+        m_listWidget->addItem(headerItem);
+        m_listWidget->setItemWidget(headerItem, headerWidget);
+    };
+
     // 辅助函数：添加联系人项（带头像）
     auto addContact = [this](const QString &username, const ContactInfo &ci) {
         QString display = ci.nickname.isEmpty() ? username : ci.nickname;
@@ -133,16 +152,31 @@ void ContactListWidget::updateContacts(const QMap<QString, ContactInfo> &contact
     };
 
     // 在线医生
+    bool hasOnlineDoctors = false;
+    for (auto it = m_contacts.constBegin(); it != m_contacts.constEnd(); ++it) {
+        if (it->online && it->role == "doctor") { hasOnlineDoctors = true; break; }
+    }
+    if (hasOnlineDoctors) addGroupHeader(QStringLiteral("在线医生"));
     for (auto it = m_contacts.constBegin(); it != m_contacts.constEnd(); ++it) {
         if (it->online && it->role == "doctor")
             addContact(it.key(), *it);
     }
     // 在线患者
+    bool hasOnlinePatients = false;
+    for (auto it = m_contacts.constBegin(); it != m_contacts.constEnd(); ++it) {
+        if (it->online && it->role == "patient") { hasOnlinePatients = true; break; }
+    }
+    if (hasOnlinePatients) addGroupHeader(QStringLiteral("在线患者"));
     for (auto it = m_contacts.constBegin(); it != m_contacts.constEnd(); ++it) {
         if (it->online && it->role == "patient")
             addContact(it.key(), *it);
     }
-    // 离线
+    // 离线联系人
+    bool hasOffline = false;
+    for (auto it = m_contacts.constBegin(); it != m_contacts.constEnd(); ++it) {
+        if (!it->online) { hasOffline = true; break; }
+    }
+    if (hasOffline) addGroupHeader(QStringLiteral("离线联系人"));
     for (auto it = m_contacts.constBegin(); it != m_contacts.constEnd(); ++it) {
         if (!it->online)
             addContact(it.key(), *it);
