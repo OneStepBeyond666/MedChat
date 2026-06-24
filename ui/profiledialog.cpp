@@ -290,15 +290,12 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     addSeparator(mainLayout);
     mainLayout->addSpacing(16);
     mainLayout->addWidget(createGroupTitle("账号安全"));
+    addSeparator(mainLayout);
 
     // 修改密码入口 - 白色卡片风格，悬停浅灰，箭头hover变色
     m_passItem = new QWidget;
     m_passItem->setCursor(Qt::PointingHandCursor);
     m_passItem->setObjectName("passItem");
-    m_passItem->setStyleSheet(
-        "#passItem { background-color: white; }"
-        "#passItem:hover { background-color: #f5f5f5; }"
-    );
     QHBoxLayout *passLayout = new QHBoxLayout(m_passItem);
     passLayout->setContentsMargins(16, 12, 16, 12);
     QLabel *passLabel = new QLabel("修改密码");
@@ -480,6 +477,10 @@ void ProfileDialog::applyStyles()
         "QScrollBar::handle:vertical:hover { background: #aaa; }"
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
         "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
+
+        // 修改密码条目
+        "#passItem { background-color: #FFFFFF; }"
+        "#passItem:hover { background-color: #F5F5F5; }"
     );
 }
 
