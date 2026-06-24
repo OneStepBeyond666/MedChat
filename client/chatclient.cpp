@@ -56,6 +56,7 @@ bool ChatClient::isConnected() const
 void ChatClient::sendRegister(const QString &username, const QString &password, const QString &role, const QString &nickname,
                                const QString &secQuestion, const QString &secAnswerHash)
 {
+    m_username = username;
     QJsonObject obj = Protocol::makeMsg(MsgType::Register);
     obj["username"] = username;
     obj["password"] = password;
@@ -68,6 +69,7 @@ void ChatClient::sendRegister(const QString &username, const QString &password, 
 
 void ChatClient::sendLogin(const QString &username, const QString &password)
 {
+    m_username = username;
     QJsonObject obj = Protocol::makeMsg(MsgType::Login);
     obj["username"] = username;
     obj["password"] = password;
