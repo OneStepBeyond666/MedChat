@@ -7,6 +7,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QJsonArray>
+#include <QDateTime>
 
 ChatServer::ChatServer(quint16 port, QObject *parent)
     : QObject(parent), m_port(port)
@@ -88,6 +89,8 @@ void ChatServer::onMessageReceived(ClientHandler *handler, const QJsonObject &ms
         handleUpdateProfile(handler, msg);
     } else if (type == MsgType::FriendRequest) {
         handleFriendRequest(handler, msg);
+    } else if (type == MsgType::FriendResponse) {
+        handleFriendResponse(handler, msg);
     } else {
         qWarning() << "[未知消息] 类型:" << type;
     }
@@ -215,6 +218,9 @@ void ChatServer::handleLogin(ClientHandler *handler, const QJsonObject &msg)
                 qDebug() << QString("[离线消息] %1 离线消息下发完成，等待ACK")
                                 .arg(username);
             }
+
+            // 下发待处理的好友请求
+            deliverPendingFriendRequests(handler);
         }
 
         // 发送离线同步结束标志
@@ -519,12 +525,12 @@ void ChatServer::handleFriendRequest(ClientHandler *handler, const QJsonObject &
 {
     QString fromUsername = handler->username();
     QString toUsername = msg["to"].toString();
+    QString text = msg["text"].toString();
 
     if (fromUsername.isEmpty() || toUsername.isEmpty()) {
         handler->sendMessage(Protocol::makeError("用户名不能为空"));
         return;
     }
-
     if (fromUsername == toUsername) {
         handler->sendMessage(Protocol::makeError("不能添加自己为好友"));
         return;
@@ -541,38 +547,185 @@ void ChatServer::handleFriendRequest(ClientHandler *handler, const QJsonObject &
         handler->sendMessage(Protocol::makeError("对方用户不存在"));
         return;
     }
-
     if (m_serverDB->areFriends(fromUid, toUid)) {
         handler->sendMessage(Protocol::makeError("你们已经是好友了"));
         return;
     }
 
-    if (m_serverDB->addFriendship(fromUid, toUid)) {
-        qDebug() << QString("[好友请求] %1 添加了 %2 为好友").arg(fromUsername, toUsername);
+    // 保存到 friend_requests 表（status=0 待处理），返回请求 ID
+    int requestId = m_serverDB->addFriendRequest(fromUid, toUid, text);
+    if (requestId < 0) {
+        handler->sendMessage(Protocol::makeError("已发送过好友请求，请等待对方处理"));
+        return;
+    }
 
-        // 通知请求者
-        QJsonObject confirmMsg = Protocol::makeMsg(MsgType::FriendResponse);
-        confirmMsg["success"] = true;
-        confirmMsg["username"] = toUsername;
-        confirmMsg["message"] = QString("已成功添加 %1 为好友").arg(toUsername);
-        handler->sendMessage(confirmMsg);
+    qDebug() << QString("[好友请求] %1(UID:%2) -> %3(UID:%4) 请求ID:%5")
+                    .arg(fromUsername).arg(fromUid).arg(toUsername).arg(toUid).arg(requestId);
 
-        // 如果对方在线，通知对方
+    // 通知发送方：请求已发送
+    QJsonObject ackMsg = Protocol::makeMsg(MsgType::FriendResponse);
+    ackMsg["success"]  = true;
+    ackMsg["username"] = toUsername;
+    ackMsg["message"]  = "好友请求已发送，等待对方确认";
+    ackMsg["sent"]     = true;   // 标记为"已发送"（非最终结果）
+    handler->sendMessage(ackMsg);
+
+    // 构建好友请求通知消息
+    UserInfo fromInfo = m_userManager->getUserInfo(fromUid);
+    QJsonObject requestMsg = Protocol::makeMsg(MsgType::FriendRequest);
+    requestMsg["from"]       = fromUsername;
+    requestMsg["text"]       = text;
+    requestMsg["time"]       = QDateTime::currentMSecsSinceEpoch();
+    requestMsg["request_id"] = requestId;
+    requestMsg["nickname"]   = fromInfo.nickname;
+    if (!fromInfo.avatarBlob.isEmpty())
+        requestMsg["avatar_base64"] = QString::fromLatin1(fromInfo.avatarBlob.toBase64());
+
+    // 目标在线 → 实时推送
+    ClientHandler *target = findClient(toUsername);
+    if (target) {
+        target->sendMessage(requestMsg);
+        qDebug() << QString("[好友请求] 已实时推送给 %1").arg(toUsername);
+    } else {
+        // 目标离线 → 保存为离线消息，登录时下发
+        QJsonDocument doc(requestMsg);
+        QString payload = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+        m_serverDB->saveOfflineMessage(fromUid, toUid, payload, 2);
+        qDebug() << QString("[好友请求] %1 不在线，已保存离线消息").arg(toUsername);
+    }
+}
+
+void ChatServer::handleFriendResponse(ClientHandler *handler, const QJsonObject &msg)
+{
+    QString myUsername = handler->username();
+    QString action     = msg["action"].toString();       // "accept" | "reject"
+    int requestId      = msg["request_id"].toInt();
+    QString toUsername = msg["to"].toString();           // 请求发起方
+
+    if (myUsername.isEmpty() || toUsername.isEmpty()) {
+        handler->sendMessage(Protocol::makeError("参数不完整"));
+        return;
+    }
+
+    int myUid = m_userManager->getUidByUsername(myUsername);
+    int toUid = m_userManager->getUidByUsername(toUsername);
+    if (myUid <= 0 || toUid <= 0) {
+        handler->sendMessage(Protocol::makeError("用户不存在"));
+        return;
+    }
+
+    if (action == "accept") {
+        // 验证请求存在且我是目标
+        QJsonObject req = m_serverDB->getFriendRequest(requestId);
+        if (req.isEmpty()) {
+            handler->sendMessage(Protocol::makeError("好友请求不存在"));
+            return;
+        }
+        if (req["to_uid"].toInt() != myUid) {
+            handler->sendMessage(Protocol::makeError("无权操作此好友请求"));
+            return;
+        }
+
+        // 更新请求状态 → accepted
+        m_serverDB->acceptFriendRequest(requestId);
+
+        // 建立双向好友关系
+        m_serverDB->addFriendship(toUid, myUid);
+        qDebug() << QString("[好友请求] %1 接受了 %2 的好友请求").arg(myUsername, toUsername);
+
+        // 通知自己
+        QJsonObject resp = Protocol::makeMsg(MsgType::FriendResponse);
+        resp["success"]  = true;
+        resp["username"] = toUsername;
+        resp["message"]  = QString("已成功添加 %1 为好友").arg(toUsername);
+        resp["accepted"] = true;
+        handler->sendMessage(resp);
+
+        // 通知对方（如果在线）
         ClientHandler *target = findClient(toUsername);
         if (target) {
-            QJsonObject notifyMsg = Protocol::makeMsg(MsgType::FriendResponse);
-            notifyMsg["success"] = true;
-            notifyMsg["username"] = fromUsername;
-            notifyMsg["message"] = QString("%1 已添加你为好友").arg(fromUsername);
-            target->sendMessage(notifyMsg);
+            QJsonObject notify = Protocol::makeMsg(MsgType::FriendResponse);
+            notify["success"]  = true;
+            notify["username"] = myUsername;
+            notify["message"]  = QString("%1 已接受你的好友请求").arg(myUsername);
+            notify["accepted"] = true;
+            target->sendMessage(notify);
 
-            // 双方都重新获取联系人列表
+            // 双方刷新联系人列表
             sendContactList(handler);
             sendContactList(target);
         } else {
             sendContactList(handler);
         }
+
+    } else if (action == "reject") {
+        // 验证请求存在且我是目标
+        QJsonObject req = m_serverDB->getFriendRequest(requestId);
+        if (req.isEmpty()) {
+            handler->sendMessage(Protocol::makeError("好友请求不存在"));
+            return;
+        }
+        if (req["to_uid"].toInt() != myUid) {
+            handler->sendMessage(Protocol::makeError("无权操作此好友请求"));
+            return;
+        }
+
+        m_serverDB->rejectFriendRequest(requestId);
+        qDebug() << QString("[好友请求] %1 拒绝了 %2 的好友请求").arg(myUsername, toUsername);
+
+        // 通知自己
+        QJsonObject resp = Protocol::makeMsg(MsgType::FriendResponse);
+        resp["success"]  = true;
+        resp["username"] = toUsername;
+        resp["message"]  = "已拒绝好友请求";
+        resp["rejected"] = true;
+        handler->sendMessage(resp);
+
+        // 通知对方（如果在线）
+        ClientHandler *target = findClient(toUsername);
+        if (target) {
+            QJsonObject notify = Protocol::makeMsg(MsgType::FriendResponse);
+            notify["success"]  = false;
+            notify["username"] = myUsername;
+            notify["message"]  = QString("%1 拒绝了你的好友请求").arg(myUsername);
+            notify["rejected"] = true;
+            target->sendMessage(notify);
+        }
+
     } else {
-        handler->sendMessage(Protocol::makeError("添加好友失败，请重试"));
+        handler->sendMessage(Protocol::makeError("未知操作"));
     }
+}
+
+void ChatServer::deliverPendingFriendRequests(ClientHandler *handler)
+{
+    QString username = handler->username();
+    int uid = m_userManager->getUidByUsername(username);
+    if (uid <= 0) return;
+
+    QJsonArray pending = m_serverDB->getPendingFriendRequests(uid);
+    if (pending.isEmpty()) return;
+
+    qDebug() << QString("[好友请求] %1 有 %2 条待处理好友请求，开始下发")
+                    .arg(username).arg(pending.size());
+
+    for (const QJsonValue &val : pending) {
+        QJsonObject req = val.toObject();
+        int fromUid = req["from_uid"].toInt();
+        UserInfo fromInfo = m_userManager->getUserInfo(fromUid);
+
+        QJsonObject requestMsg = Protocol::makeMsg(MsgType::FriendRequest);
+        requestMsg["from"]       = fromInfo.username;
+        requestMsg["text"]       = req["message"].toString();
+        requestMsg["time"]       = req["time"].toDouble();
+        requestMsg["request_id"] = req["request_id"].toInt();
+        requestMsg["nickname"]   = fromInfo.nickname;
+        requestMsg["synced"]     = true;   // 标记为登录同步（非实时通知）
+        if (!fromInfo.avatarBlob.isEmpty())
+            requestMsg["avatar_base64"] = QString::fromLatin1(fromInfo.avatarBlob.toBase64());
+
+        handler->sendMessage(requestMsg);
+    }
+
+    qDebug() << QString("[好友请求] %1 好友请求下发完成").arg(username);
 }

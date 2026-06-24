@@ -39,6 +39,22 @@ public:
     /// 离线消息：收到客户端 ACK 后删除已确认的消息（status=1，事务保证原子性）
     bool deleteAckedOfflineMessages(int receiverUid);
 
+    // ---- friend_requests ----
+    /// 添加好友请求，返回请求 ID（-1 表示已有待处理请求）
+    int  addFriendRequest(int fromUid, int toUid, const QString &message);
+
+    /// 获取某用户所有待处理的好友请求（to_uid=receiver, status=0）
+    QJsonArray getPendingFriendRequests(int toUid);
+
+    /// 获取单条好友请求 {from_uid, to_uid, status}，不存在返回空对象
+    QJsonObject getFriendRequest(int requestId);
+
+    /// 接受好友请求（status 0→1），成功返回 true
+    bool acceptFriendRequest(int requestId);
+
+    /// 拒绝好友请求（status 0→2），成功返回 true
+    bool rejectFriendRequest(int requestId);
+
 private:
     void initDatabase();
     void createTables();

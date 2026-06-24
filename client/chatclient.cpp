@@ -488,17 +488,42 @@ void ChatClient::handleFriendRequest(const QJsonObject &msg)
     QString from = msg["from"].toString();
     QString text = msg["text"].toString();
     qint64 time = static_cast<qint64>(msg["time"].toDouble());
+    int requestId = msg["request_id"].toInt();
+    QString nickname = msg["nickname"].toString();
+    bool isSynced = msg.contains("synced") && msg["synced"].toBool();
 
     // 离线好友请求去重
     if (msg.contains("offline") && msg["offline"].toBool()) {
-        if (isDuplicateOfflineMessage(from, text, time)) {
-            qDebug() << "[Client] 离线好友请求去重跳过: from=" << from;
-            return;
+        // 检查本地是否已存储该请求
+        QVector<FriendRequestInfo> existing = LocalDB::instance().loadPendingFriendRequests();
+        for (const FriendRequestInfo &r : existing) {
+            if (r.requestId == requestId) {
+                qDebug() << "[Client] 离线好友请求去重跳过: from=" << from << "id=" << requestId;
+                return;
+            }
         }
     }
 
-    qDebug() << "[Client] 收到好友请求:" << from;
-    emit friendRequestReceived(from, text);
+    // 解析头像
+    QByteArray avatarData;
+    QString avatarB64 = msg["avatar_base64"].toString();
+    if (!avatarB64.isEmpty())
+        avatarData = QByteArray::fromBase64(avatarB64.toLatin1());
+
+    // 持久化到本地 friend_requests 表
+    FriendRequestInfo info;
+    info.requestId    = requestId;
+    info.fromUsername = from;
+    info.nickname     = nickname.isEmpty() ? from : nickname;
+    info.message      = text;
+    info.timestamp    = time;
+    info.avatarData   = avatarData;
+    info.status       = 0;
+    LocalDB::instance().insertFriendRequest(info);
+
+    qDebug() << "[Client] 收到好友请求:" << from << "id=" << requestId;
+    emit friendRequestReceived(requestId, from, nickname, text, avatarData, isSynced);
+    emit friendRequestCountChanged(LocalDB::instance().getPendingFriendRequestCount());
 }
 
 void ChatClient::handleFriendResponse(const QJsonObject &msg)
@@ -506,8 +531,26 @@ void ChatClient::handleFriendResponse(const QJsonObject &msg)
     bool success = msg["success"].toBool();
     QString username = msg["username"].toString();
     QString message = msg["message"].toString();
+    bool accepted = msg.contains("accepted") && msg["accepted"].toBool();
+    bool rejected = msg.contains("rejected") && msg["rejected"].toBool();
+    bool sent     = msg.contains("sent") && msg["sent"].toBool();
 
-    qDebug() << "[Client] 好友请求响应:" << success << username << message;
+    qDebug() << "[Client] 好友请求响应:" << success << username << message
+             << "accepted=" << accepted << "rejected=" << rejected << "sent=" << sent;
+
+    // 如果对方接受了请求，更新本地好友请求状态
+    if (accepted) {
+        // 查找本地待处理请求中来自该用户的请求，标记为已接受
+        QVector<FriendRequestInfo> pending = LocalDB::instance().loadPendingFriendRequests();
+        for (const FriendRequestInfo &r : pending) {
+            if (r.fromUsername == username) {
+                LocalDB::instance().updateFriendRequestStatus(r.requestId, 1);
+                break;
+            }
+        }
+        emit friendRequestCountChanged(LocalDB::instance().getPendingFriendRequestCount());
+    }
+
     emit friendResponseReceived(success, username, message);
 }
 
@@ -528,6 +571,19 @@ void ChatClient::sendFriendRequest(const QString &to)
     obj["to"] = to;
     obj["text"] = "请求添加你为好友";
     sendJson(obj);
+}
+
+void ChatClient::sendFriendResponse(int requestId, const QString &to, bool accept)
+{
+    QJsonObject obj = Protocol::makeMsg(MsgType::FriendResponse);
+    obj["action"]    = accept ? "accept" : "reject";
+    obj["request_id"] = requestId;
+    obj["to"]        = to;
+    sendJson(obj);
+
+    // 立即更新本地状态
+    LocalDB::instance().updateFriendRequestStatus(requestId, accept ? 1 : 2);
+    emit friendRequestCountChanged(LocalDB::instance().getPendingFriendRequestCount());
 }
 
 void ChatClient::handleProfileUpdated(const QJsonObject &msg)

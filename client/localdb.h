@@ -43,6 +43,16 @@ struct StoredMessage {
     bool    isMine = false;
 };
 
+struct FriendRequestInfo {
+    int      requestId = 0;
+    QString  fromUsername;
+    QString  nickname;
+    QString  message;
+    qint64   timestamp = 0;
+    QByteArray avatarData;
+    int      status = 0;     // 0=pending, 1=accepted, 2=rejected
+};
+
 // ============================================================
 // LocalDB 单例 —— 客户端本地存储管理
 // ============================================================
@@ -82,6 +92,12 @@ public:
     qint64 insertMessage(const StoredMessage &m);
     QVector<StoredMessage> loadMessages(const QString &contactUid,
                                         int limit = 200);
+
+    // ---- meta.db: friend_requests ----
+    void insertFriendRequest(const FriendRequestInfo &r);
+    QVector<FriendRequestInfo> loadPendingFriendRequests();
+    void updateFriendRequestStatus(int requestId, int status);
+    int  getPendingFriendRequestCount();
 
     // ---- 文件操作 ----
     QString generateUniqueFilePath(const QString &targetDir,

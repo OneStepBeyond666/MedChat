@@ -115,6 +115,23 @@ void ServerDB::createTables()
     );
     if (!ok) qCritical() << "[ServerDB] 创建 offline_messages 表失败:" << q.lastError().text();
 
+    // =========================================================
+    // friend_requests 表
+    // =========================================================
+    ok = q.exec(
+        "CREATE TABLE IF NOT EXISTS friend_requests ("
+        "  id          INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "  from_uid    INTEGER NOT NULL,"
+        "  to_uid      INTEGER NOT NULL,"
+        "  message     TEXT    DEFAULT '',"
+        "  status      INTEGER NOT NULL DEFAULT 0,"  // 0=pending, 1=accepted, 2=rejected
+        "  created_at  INTEGER NOT NULL,"
+        "  FOREIGN KEY (from_uid) REFERENCES users(uid),"
+        "  FOREIGN KEY (to_uid)   REFERENCES users(uid)"
+        ")"
+    );
+    if (!ok) qCritical() << "[ServerDB] 创建 friend_requests 表失败:" << q.lastError().text();
+
     // 兼容旧数据库：若表已存在但无 status 列，自动 ALTER ADD
     QSqlRecord rec = db.record("offline_messages");
     if (!rec.contains("status")) {
@@ -327,4 +344,126 @@ bool ServerDB::deleteAckedOfflineMessages(int receiverUid)
     qDebug() << "[ServerDB] 离线消息ACK删除: receiver=" << receiverUid
              << "deleted=" << deleted;
     return true;
+}
+
+// =========================================================
+// friend_requests
+// =========================================================
+
+int ServerDB::addFriendRequest(int fromUid, int toUid, const QString &message)
+{
+    if (fromUid <= 0 || toUid <= 0 || fromUid == toUid) return -1;
+
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+
+    // 检查是否已有待处理的请求（双向）
+    q.prepare(
+        "SELECT COUNT(*) FROM friend_requests "
+        "WHERE ((from_uid = :f AND to_uid = :t) OR (from_uid = :t AND to_uid = :f)) "
+        "AND status = 0"
+    );
+    q.bindValue(":f", fromUid);
+    q.bindValue(":t", toUid);
+    if (q.exec() && q.next() && q.value(0).toInt() > 0) {
+        qDebug() << "[ServerDB] 好友请求已存在(待处理):" << fromUid << "->" << toUid;
+        return -1;  // 已有待处理请求
+    }
+
+    qint64 now = QDateTime::currentMSecsSinceEpoch() / 1000;
+    q.prepare(
+        "INSERT INTO friend_requests (from_uid, to_uid, message, status, created_at) "
+        "VALUES (:f, :t, :msg, 0, :ts)"
+    );
+    q.bindValue(":f", fromUid);
+    q.bindValue(":t", toUid);
+    q.bindValue(":msg", message);
+    q.bindValue(":ts", now);
+
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] 添加好友请求失败:" << q.lastError().text();
+        return -1;
+    }
+
+    int requestId = q.lastInsertId().toInt();
+    qDebug() << QString("[ServerDB] 好友请求已创建: id=%1 from=%2 to=%3")
+                    .arg(requestId).arg(fromUid).arg(toUid);
+    return requestId;
+}
+
+QJsonArray ServerDB::getPendingFriendRequests(int toUid)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QJsonArray result;
+
+    QSqlQuery q(db);
+    q.prepare(
+        "SELECT id, from_uid, message, created_at FROM friend_requests "
+        "WHERE to_uid = :to AND status = 0 "
+        "ORDER BY created_at DESC"
+    );
+    q.bindValue(":to", toUid);
+
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] 查询待处理好友请求失败:" << q.lastError().text();
+        return result;
+    }
+
+    while (q.next()) {
+        QJsonObject obj;
+        obj["request_id"] = q.value("id").toInt();
+        obj["from_uid"]   = q.value("from_uid").toInt();
+        obj["message"]    = q.value("message").toString();
+        obj["time"]       = static_cast<double>(q.value("created_at").toLongLong());
+        result.append(obj);
+    }
+    return result;
+}
+
+QJsonObject ServerDB::getFriendRequest(int requestId)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+
+    q.prepare("SELECT from_uid, to_uid, status FROM friend_requests WHERE id = :id");
+    q.bindValue(":id", requestId);
+
+    if (q.exec() && q.next()) {
+        QJsonObject obj;
+        obj["from_uid"] = q.value("from_uid").toInt();
+        obj["to_uid"]   = q.value("to_uid").toInt();
+        obj["status"]   = q.value("status").toInt();
+        return obj;
+    }
+    return QJsonObject();
+}
+
+bool ServerDB::acceptFriendRequest(int requestId)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+
+    q.prepare("UPDATE friend_requests SET status = 1 WHERE id = :id AND status = 0");
+    q.bindValue(":id", requestId);
+
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] 接受好友请求失败:" << q.lastError().text();
+        return false;
+    }
+    return q.numRowsAffected() > 0;
+}
+
+bool ServerDB::rejectFriendRequest(int requestId)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+
+    q.prepare("UPDATE friend_requests SET status = 2 WHERE id = :id AND status = 0");
+    q.bindValue(":id", requestId);
+
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] 拒绝好友请求失败:" << q.lastError().text();
+        return false;
+    }
+    return q.numRowsAffected() > 0;
 }

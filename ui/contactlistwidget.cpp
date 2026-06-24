@@ -159,6 +159,45 @@ void ContactListWidget::rebuildList()
 {
     m_listWidget->clear();
 
+    // ========== "新的朋友" 入口（置顶） ==========
+    if (m_filterText.isEmpty()) {
+        QWidget *frWidget = new QWidget;
+        QHBoxLayout *frLayout = new QHBoxLayout(frWidget);
+        frLayout->setContentsMargins(4, 4, 8, 4);
+        frLayout->setSpacing(8);
+
+        // 图标
+        QLabel *iconLabel = new QLabel;
+        iconLabel->setFixedSize(40, 40);
+        iconLabel->setScaledContents(true);
+        iconLabel->setPixmap(AvatarCropper::defaultAvatar(
+            QString::fromUtf8("\xe6\x96\xb0\xe7\x9a\x84\xe6\x9c\x8b\xe5\x8f\x8b"), 40));
+        frLayout->addWidget(iconLabel);
+
+        // 名称
+        QLabel *frNameLabel = new QLabel(QString::fromUtf8(
+            "\xe6\x96\xb0\xe7\x9a\x84\xe6\x9c\x8b\xe5\x8f\x8b"));  // "新的朋友"
+        frNameLabel->setStyleSheet("font-size: 14px; color: #333;");
+        frLayout->addWidget(frNameLabel, 1);
+
+        // 红点徽标
+        if (m_friendRequestCount > 0) {
+            QLabel *badge = new QLabel(QString::number(m_friendRequestCount));
+            badge->setFixedSize(20, 20);
+            badge->setAlignment(Qt::AlignCenter);
+            badge->setStyleSheet(
+                "background: #FA5151; color: white; border-radius: 10px; "
+                "font-size: 11px; font-weight: bold;");
+            frLayout->addWidget(badge);
+        }
+
+        QListWidgetItem *frItem = new QListWidgetItem;
+        frItem->setSizeHint(QSize(220, 48));
+        frItem->setData(Qt::UserRole, "__friend_requests__");
+        m_listWidget->addItem(frItem);
+        m_listWidget->setItemWidget(frItem, frWidget);
+    }
+
     // ========== 文件传输助手（始终置顶） ==========
     QString helperName = QString::fromUtf8(MsgType::FileHelper);
     if (m_filterText.isEmpty() || helperName.contains(m_filterText)) {
@@ -308,8 +347,18 @@ void ContactListWidget::filter(const QString &text)
     rebuildList();
 }
 
+void ContactListWidget::setFriendRequestCount(int count)
+{
+    m_friendRequestCount = count;
+    rebuildList();
+}
+
 void ContactListWidget::onItemClicked(QListWidgetItem *item)
 {
     QString username = item->data(Qt::UserRole).toString();
+    if (username == "__friend_requests__") {
+        emit friendRequestEntryClicked();
+        return;
+    }
     emit contactSelected(username);
 }

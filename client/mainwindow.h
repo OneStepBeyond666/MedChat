@@ -13,6 +13,8 @@ class ChatClient;
 class LeftSidebar;
 class ChatWidget;
 class ProfileDialog;
+class FriendRequestWidget;
+class FriendRequestNotification;
 #include "chatclient.h"
 
 class MainWindow : public QMainWindow
@@ -51,7 +53,12 @@ private slots:
     void onServerError(const QString &error);
     void onStrangerError(const QString &text);
     void onOfflineSyncDone();
-    void onFriendRequestReceived(const QString &from, const QString &text);
+    void onFriendRequestReceived(int requestId, const QString &from, const QString &nickname,
+                                 const QString &text, const QByteArray &avatarData, bool isSynced);
+    void onFriendRequestEntryClicked();
+    void onAcceptFriendRequest(int requestId, const QString &fromUsername);
+    void onRejectFriendRequest(int requestId, const QString &fromUsername);
+    void onFriendRequestCountChanged(int count);
     void onDisconnected();
     void onAvatarClicked();
     void onContactProfileChanged(const QString &username, const QString &nickname,
@@ -70,6 +77,7 @@ private:
                             const QString &fileId, qint64 timestamp, bool isMine);
     void updateSession(const QString &contactUid, const QString &preview, qint64 timestamp);
     QString displayName(const QString &username) const;
+    void loadFriendRequests();
 
     ChatClient *m_client;
     QString m_username;
@@ -79,6 +87,10 @@ private:
     LeftSidebar *m_sidebar;
     QStackedWidget *m_chatStack;
     ChatWidget *m_chatWidget;
+    FriendRequestWidget *m_friendRequestWidget;
+
+    // 好友请求: requestId -> fromUsername
+    QMap<int, QString> m_pendingFriendRequests;
 
     // 文件接收映射: fileId -> from username
     QMap<QString, QString> m_pendingFileOffers;

@@ -188,6 +188,8 @@ void LeftSidebar::setupUI()
             this, &LeftSidebar::onSessionClicked);
     connect(m_contactList, &ContactListWidget::contactSelected,
             this, &LeftSidebar::onContactClicked);
+    connect(m_contactList, &ContactListWidget::friendRequestEntryClicked,
+            this, &LeftSidebar::friendRequestEntryClicked);
 }
 
 void LeftSidebar::applyStyles()
@@ -260,6 +262,11 @@ QString LeftSidebar::selectedContact() const
 void LeftSidebar::clearSelection()
 {
     m_contactList->clearSelection();
+}
+
+void LeftSidebar::setFriendRequestCount(int count)
+{
+    m_contactList->setFriendRequestCount(count);
 }
 
 // ============================================================

@@ -16,9 +16,11 @@ public:
     QString selectedContact() const;
     void clearSelection();
     void filter(const QString &text);
+    void setFriendRequestCount(int count);
 
 signals:
     void contactSelected(const QString &username);
+    void friendRequestEntryClicked();
 
 private slots:
     void onItemClicked(QListWidgetItem *item);
@@ -34,6 +36,7 @@ private:
     QListWidget *m_listWidget;
     QMap<QString, ContactInfo> m_contacts;
     QString m_filterText;
+    int m_friendRequestCount = 0;
 };
 
 #endif // CONTACTLISTWIDGET_H

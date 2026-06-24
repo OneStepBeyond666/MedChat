@@ -32,12 +32,14 @@ public:
     void refreshSessions();
     QString selectedContact() const;
     void clearSelection();
+    void setFriendRequestCount(int count);
 
 signals:
     void contactSelected(const QString &username);
     void sessionSelected(const QString &username);
     void avatarClicked();
     void addFriendRequested();
+    void friendRequestEntryClicked();
 
 private slots:
     void onIconClicked(int id);

@@ -27,7 +27,9 @@ SOURCES += \
     ui/leftsidebar.cpp \
     ui/messagebubble.cpp \
     ui/profiledialog.cpp \
-    ui/sessionlistwidget.cpp
+    ui/sessionlistwidget.cpp \
+    ui/friendrequestwidget.cpp \
+    ui/friendrequestnotification.cpp
 
 HEADERS += \
     common/protocol.h \
@@ -47,7 +49,9 @@ HEADERS += \
     ui/leftsidebar.h \
     ui/messagebubble.h \
     ui/profiledialog.h \
-    ui/sessionlistwidget.h
+    ui/sessionlistwidget.h \
+    ui/friendrequestwidget.h \
+    ui/friendrequestnotification.h
 
 RESOURCES += \
     resources/style.qrc

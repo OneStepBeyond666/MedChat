@@ -39,9 +39,11 @@ private:
     void handleOfflineSyncAck(ClientHandler *handler, const QJsonObject &msg);
     void handleUpdateProfile(ClientHandler *handler, const QJsonObject &msg);
     void handleFriendRequest(ClientHandler *handler, const QJsonObject &msg);
+    void handleFriendResponse(ClientHandler *handler, const QJsonObject &msg);
 
     void broadcastOnlineStatus();
     void sendContactList(ClientHandler *handler);
+    void deliverPendingFriendRequests(ClientHandler *handler);
     ClientHandler* findClient(const QString &username) const;
 
     QTcpServer *m_tcpServer;

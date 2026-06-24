@@ -7,6 +7,8 @@
 #include "ui/profiledialog.h"
 #include "ui/addfrienddialog.h"
 #include "ui/chatwidget.h"
+#include "ui/friendrequestwidget.h"
+#include "ui/friendrequestnotification.h"
 #include <QSplitter>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -56,6 +58,7 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_client, &ChatClient::strangerError, this, &MainWindow::onStrangerError);
     connect(m_client, &ChatClient::offlineSyncDone, this, &MainWindow::onOfflineSyncDone);
     connect(m_client, &ChatClient::friendRequestReceived, this, &MainWindow::onFriendRequestReceived);
+    connect(m_client, &ChatClient::friendRequestCountChanged, this, &MainWindow::onFriendRequestCountChanged);
     connect(m_client, &ChatClient::friendResponseReceived, this, [this](bool success, const QString &username, const QString &message) {
         if (success) {
             statusBar()->showMessage(message, 5000);
@@ -74,12 +77,19 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_sidebar, &LeftSidebar::sessionSelected, this, &MainWindow::onSessionSelected);
     connect(m_sidebar, &LeftSidebar::avatarClicked, this, &MainWindow::onAvatarClicked);
     connect(m_sidebar, &LeftSidebar::addFriendRequested, this, &MainWindow::onAddFriendRequested);
+    connect(m_sidebar, &LeftSidebar::friendRequestEntryClicked, this, &MainWindow::onFriendRequestEntryClicked);
+
+    connect(m_friendRequestWidget, &FriendRequestWidget::acceptRequested, this, &MainWindow::onAcceptFriendRequest);
+    connect(m_friendRequestWidget, &FriendRequestWidget::rejectRequested, this, &MainWindow::onRejectFriendRequest);
 
     // 初始化侧栏资料
     m_sidebar->setSelfProfile(m_nickname, m_avatarData);
 
     // 加载会话列表
     loadSessionsList();
+
+    // 加载待处理好友请求
+    loadFriendRequests();
 
     connect(m_chatWidget, &ChatWidget::sendMessage, this, &MainWindow::onSendTextMessage);
     connect(m_chatWidget, &ChatWidget::sendFileRequest, this, &MainWindow::onSendFileRequest);
@@ -123,6 +133,10 @@ void MainWindow::setupUI()
     // Page 1: 聊天页
     m_chatWidget = new ChatWidget;
     m_chatStack->addWidget(m_chatWidget);
+
+    // Page 2: 好友请求页
+    m_friendRequestWidget = new FriendRequestWidget;
+    m_chatStack->addWidget(m_friendRequestWidget);
 
     m_chatStack->setCurrentIndex(0);  // 初始显示占位页
 
@@ -684,12 +698,69 @@ void MainWindow::onOfflineSyncDone()
     statusBar()->showMessage("离线消息同步完成", 3000);
 }
 
-void MainWindow::onFriendRequestReceived(const QString &from, const QString &text)
+void MainWindow::onFriendRequestReceived(int requestId, const QString &from, const QString &nickname,
+                                          const QString &text, const QByteArray &avatarData, bool isSynced)
 {
-    // 好友请求：弹出提示
-    QString display = displayName(from);
-    QMessageBox::information(this, "好友请求",
-                             display + " 请求添加您为好友:\n" + text);
+    QString display = nickname.isEmpty() ? from : nickname;
+
+    // 记录到待处理映射
+    m_pendingFriendRequests[requestId] = from;
+
+    // 非登录同步的实时请求 → 弹出通知
+    if (!isSynced) {
+        FriendRequestNotification *notif = new FriendRequestNotification(display, avatarData, this);
+        connect(notif, &FriendRequestNotification::viewRequested, this, &MainWindow::onFriendRequestEntryClicked);
+        notif->show();
+    }
+
+    // 刷新好友请求面板（如果当前正在查看）
+    loadFriendRequests();
+}
+
+void MainWindow::onFriendRequestEntryClicked()
+{
+    // 切换到好友请求页面
+    m_chatStack->setCurrentIndex(2);
+    loadFriendRequests();
+}
+
+void MainWindow::onAcceptFriendRequest(int requestId, const QString &fromUsername)
+{
+    m_client->sendFriendResponse(requestId, fromUsername, true);
+    m_friendRequestWidget->removeRequest(requestId);
+    m_pendingFriendRequests.remove(requestId);
+    statusBar()->showMessage("已接受 " + displayName(fromUsername) + " 的好友请求", 3000);
+
+    // 刷新联系人列表
+    m_sidebar->setContacts(m_client->contacts());
+    loadSessionsList();
+}
+
+void MainWindow::onRejectFriendRequest(int requestId, const QString &fromUsername)
+{
+    m_client->sendFriendResponse(requestId, fromUsername, false);
+    m_friendRequestWidget->removeRequest(requestId);
+    m_pendingFriendRequests.remove(requestId);
+    statusBar()->showMessage("已拒绝好友请求", 3000);
+}
+
+void MainWindow::onFriendRequestCountChanged(int count)
+{
+    m_sidebar->setFriendRequestCount(count);
+}
+
+void MainWindow::loadFriendRequests()
+{
+    QVector<FriendRequestInfo> requests = LocalDB::instance().loadPendingFriendRequests();
+
+    // 更新映射
+    m_pendingFriendRequests.clear();
+    for (const FriendRequestInfo &r : requests) {
+        m_pendingFriendRequests[r.requestId] = r.fromUsername;
+    }
+
+    m_friendRequestWidget->setRequests(requests);
+    m_sidebar->setFriendRequestCount(requests.size());
 }
 
 void MainWindow::onDisconnected()

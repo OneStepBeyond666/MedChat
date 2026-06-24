@@ -155,6 +155,22 @@ bool LocalDB::createMetaTables()
         return false;
     }
 
+    ok = q.exec(
+        "CREATE TABLE IF NOT EXISTS friend_requests ("
+        "  request_id    INTEGER PRIMARY KEY,"
+        "  from_username TEXT,"
+        "  nickname      TEXT,"
+        "  message       TEXT,"
+        "  timestamp     INTEGER,"
+        "  avatar_data   BLOB,"
+        "  status        INTEGER DEFAULT 0"
+        ")"
+    );
+    if (!ok) {
+        qCritical() << "[LocalDB] 创建 friend_requests 表失败:" << q.lastError().text();
+        return false;
+    }
+
     return true;
 }
 
@@ -431,6 +447,80 @@ QVector<StoredMessage> LocalDB::loadMessages(const QString &contactUid, int limi
         }
     }
     return result;
+}
+
+// ============================================================
+// friend_requests 操作
+// ============================================================
+
+void LocalDB::insertFriendRequest(const FriendRequestInfo &r)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_metaConnName);
+    QSqlQuery q(db);
+    q.prepare(
+        "INSERT OR REPLACE INTO friend_requests "
+        "(request_id, from_username, nickname, message, timestamp, avatar_data, status) "
+        "VALUES (:rid, :from, :nick, :msg, :ts, :avatar, :st)"
+    );
+    q.bindValue(":rid", r.requestId);
+    q.bindValue(":from", r.fromUsername);
+    q.bindValue(":nick", r.nickname);
+    q.bindValue(":msg", r.message);
+    q.bindValue(":ts", r.timestamp);
+    q.bindValue(":avatar", r.avatarData);
+    q.bindValue(":st", r.status);
+
+    if (!q.exec())
+        qWarning() << "[LocalDB] insertFriendRequest 失败:" << q.lastError().text();
+}
+
+QVector<FriendRequestInfo> LocalDB::loadPendingFriendRequests()
+{
+    QVector<FriendRequestInfo> result;
+    QSqlDatabase db = QSqlDatabase::database(m_metaConnName);
+    QSqlQuery q(db);
+    q.prepare(
+        "SELECT request_id, from_username, nickname, message, timestamp, avatar_data "
+        "FROM friend_requests WHERE status = 0 "
+        "ORDER BY timestamp DESC"
+    );
+
+    if (q.exec()) {
+        while (q.next()) {
+            FriendRequestInfo r;
+            r.requestId    = q.value(0).toInt();
+            r.fromUsername = q.value(1).toString();
+            r.nickname     = q.value(2).toString();
+            r.message      = q.value(3).toString();
+            r.timestamp    = q.value(4).toLongLong();
+            r.avatarData   = q.value(5).toByteArray();
+            r.status       = 0;
+            result.append(r);
+        }
+    }
+    return result;
+}
+
+void LocalDB::updateFriendRequestStatus(int requestId, int status)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_metaConnName);
+    QSqlQuery q(db);
+    q.prepare("UPDATE friend_requests SET status = :st WHERE request_id = :rid");
+    q.bindValue(":st", status);
+    q.bindValue(":rid", requestId);
+
+    if (!q.exec())
+        qWarning() << "[LocalDB] updateFriendRequestStatus 失败:" << q.lastError().text();
+}
+
+int LocalDB::getPendingFriendRequestCount()
+{
+    QSqlDatabase db = QSqlDatabase::database(m_metaConnName);
+    QSqlQuery q(db);
+    q.prepare("SELECT COUNT(*) FROM friend_requests WHERE status = 0");
+    if (q.exec() && q.next())
+        return q.value(0).toInt();
+    return 0;
 }
 
 // ============================================================

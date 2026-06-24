@@ -54,6 +54,9 @@ public:
     /// 发送好友请求
     void sendFriendRequest(const QString &to);
 
+    /// 发送好友请求响应（接受/拒绝）
+    void sendFriendResponse(int requestId, const QString &to, bool accept);
+
     QString myUsername() const { return m_username; }
     QString myRole() const { return m_role; }
     QString myNickname() const { return m_myNickname; }
@@ -85,8 +88,10 @@ signals:
     void serverError(const QString &error);
     void offlineSyncDone();                       // 离线消息同步完成
     void strangerError(const QString &text);      // 陌生人拦截提示
-    void friendRequestReceived(const QString &from, const QString &text);
-    void friendResponseReceived(bool success, const QString &username, const QString &message); // 好友请求
+    void friendRequestReceived(int requestId, const QString &from, const QString &nickname,
+                               const QString &text, const QByteArray &avatarData, bool isSynced);
+    void friendResponseReceived(bool success, const QString &username, const QString &message);
+    void friendRequestCountChanged(int count);    // 待处理好友请求数量变化
 
 private slots:
     void onConnected();
