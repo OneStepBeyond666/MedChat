@@ -333,6 +333,18 @@ void MainWindow::onContactListUpdated(const QMap<QString, ContactInfo> &contacts
 {
     m_sidebar->setContacts(contacts);
     loadSessionsList();  // 联系人列表到达后刷新会话昵称
+
+    // 好友列表变化后，重算附近的人计数（附近的人 = 在线用户 - 好友 - 自己）
+    // 因为 handleContactList 可能在 handleOnlineStatus 之后到达，
+    // 此时 m_onlineUsers 不变但 m_contacts 变了，stranger 集合随之改变。
+    QMap<QString, ContactInfo> onlineUsers = m_client->onlineUsers();
+    QMap<QString, ContactInfo> strangers;
+    for (auto it = onlineUsers.constBegin(); it != onlineUsers.constEnd(); ++it) {
+        if (it.key() == m_username) continue;
+        if (contacts.contains(it.key())) continue;
+        strangers[it.key()] = it.value();
+    }
+    m_sidebar->setNearbyPeopleCount(strangers.size());
 }
 
 // ============================================================
