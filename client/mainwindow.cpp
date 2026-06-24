@@ -59,6 +59,7 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_client, &ChatClient::offlineSyncDone, this, &MainWindow::onOfflineSyncDone);
     connect(m_client, &ChatClient::friendRequestReceived, this, &MainWindow::onFriendRequestReceived);
     connect(m_client, &ChatClient::friendRequestCountChanged, this, &MainWindow::onFriendRequestCountChanged);
+    connect(m_client, &ChatClient::friendRequestConflict, this, &MainWindow::onFriendRequestConflict);
     connect(m_client, &ChatClient::onlineUsersUpdated, this, &MainWindow::onOnlineUsersUpdated);
     connect(m_client, &ChatClient::friendResponseReceived, this, [this](bool success, const QString &username, const QString &message) {
         if (success) {
@@ -766,6 +767,25 @@ void MainWindow::onRejectFriendRequest(int requestId, const QString &fromUsernam
 void MainWindow::onFriendRequestCountChanged(int count)
 {
     m_sidebar->setFriendRequestCount(count);
+}
+
+void MainWindow::onFriendRequestConflict(const QString &target, const QString &direction,
+                                          const QString &message, int requestId)
+{
+    Q_UNUSED(requestId)
+    QString display = displayName(target);
+
+    if (direction == "incoming") {
+        // 对方已向你发送好友请求 → 引导去好友请求面板处理
+        statusBar()->showMessage(message, 5000);
+        // 自动跳转到好友请求面板
+        m_chatStack->setCurrentIndex(2);
+        loadFriendRequests();
+    } else {
+        // 你已向对方发送过请求 → 提示等待
+        statusBar()->showMessage(
+            QString("已向 %1 发送过好友请求，请等待对方处理").arg(display), 5000);
+    }
 }
 
 void MainWindow::loadFriendRequests()

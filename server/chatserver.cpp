@@ -9,6 +9,7 @@
 #include <QJsonArray>
 #include <QDateTime>
 #include <QSet>
+#include <QSqlQuery>
 
 ChatServer::ChatServer(quint16 port, QObject *parent)
     : QObject(parent), m_port(port)
@@ -566,10 +567,44 @@ void ChatServer::handleFriendRequest(ClientHandler *handler, const QJsonObject &
         return;
     }
 
+    // 检查是否已有待处理的请求（双向），返回结构化的冲突消息
+    {
+        QSqlQuery checkQ(m_serverDB->database());
+        checkQ.prepare(
+            "SELECT id, from_uid, to_uid FROM friend_requests "
+            "WHERE ((from_uid = :f AND to_uid = :t) OR (from_uid = :t AND to_uid = :f)) "
+            "AND status = 0"
+        );
+        checkQ.bindValue(":f", fromUid);
+        checkQ.bindValue(":t", toUid);
+        if (checkQ.exec() && checkQ.next()) {
+            int existingId = checkQ.value(0).toInt();
+            int existingFrom = checkQ.value(1).toInt();
+
+            // 构建冲突消息：告知客户端哪个方向存在待处理请求
+            QJsonObject conflict = Protocol::makeMsg(MsgType::FriendRequestConflict);
+            conflict["target"] = toUsername;
+            if (existingFrom == fromUid) {
+                // 自己已发过请求给对方
+                conflict["direction"] = QString("outgoing");
+                conflict["message"] = QString("你已向 %1 发送过好友请求，请等待对方处理").arg(toUsername);
+            } else {
+                // 对方已发过请求给自己
+                conflict["direction"] = QString("incoming");
+                conflict["request_id"] = existingId;
+                conflict["message"] = QString("%1 已向你发送好友请求，请在好友请求中处理").arg(toUsername);
+            }
+            handler->sendMessage(conflict);
+            qDebug() << QString("[好友请求] 冲突检测: %1(UID:%2) -> %3(UID:%4) 已有待处理请求 id=%5")
+                            .arg(fromUsername).arg(fromUid).arg(toUsername).arg(toUid).arg(existingId);
+            return;
+        }
+    }
+
     // 保存到 friend_requests 表（status=0 待处理），返回请求 ID
     int requestId = m_serverDB->addFriendRequest(fromUid, toUid, text);
     if (requestId < 0) {
-        handler->sendMessage(Protocol::makeError("已发送过好友请求，请等待对方处理"));
+        handler->sendMessage(Protocol::makeError("好友请求发送失败，请重试"));
         return;
     }
 

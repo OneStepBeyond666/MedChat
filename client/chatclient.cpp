@@ -201,6 +201,7 @@ void ChatClient::processMessage(const QJsonObject &msg)
     else if (type == MsgType::ErrorStranger) handleStrangerError(msg);
     else if (type == MsgType::FriendRequest) handleFriendRequest(msg);
     else if (type == MsgType::FriendResponse) handleFriendResponse(msg);
+    else if (type == MsgType::FriendRequestConflict) handleFriendRequestConflict(msg);
     else if (type == MsgType::ProfileUpdated) handleProfileUpdated(msg);
     else
         qWarning() << "[Client] Unknown message type:" << type;
@@ -553,6 +554,19 @@ void ChatClient::handleFriendResponse(const QJsonObject &msg)
     }
 
     emit friendResponseReceived(success, username, message);
+}
+
+void ChatClient::handleFriendRequestConflict(const QJsonObject &msg)
+{
+    QString target    = msg["target"].toString();
+    QString direction = msg["direction"].toString();
+    QString message   = msg["message"].toString();
+    int requestId     = msg["request_id"].toInt();
+
+    qDebug() << "[Client] 好友请求冲突:" << target << "direction=" << direction
+             << "message=" << message << "requestId=" << requestId;
+
+    emit friendRequestConflict(target, direction, message, requestId);
 }
 
 void ChatClient::sendProfileUpdate(const QString &nickname, const QByteArray &avatarData)

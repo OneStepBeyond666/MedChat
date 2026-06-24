@@ -32,9 +32,10 @@ namespace MsgType {
     constexpr const char* ErrorStranger = "error_stranger";
 
     // 好友关系
-    constexpr const char* FriendRequest  = "friend_request";
-    constexpr const char* FriendResponse = "friend_response";
-    constexpr const char* SyncFriends    = "sync_friends";
+    constexpr const char* FriendRequest         = "friend_request";
+    constexpr const char* FriendResponse        = "friend_response";
+    constexpr const char* FriendRequestConflict = "friend_request_conflict";
+    constexpr const char* SyncFriends           = "sync_friends";
 
     // 离线同步
     constexpr const char* OfflineSync    = "offline_sync";

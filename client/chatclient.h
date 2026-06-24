@@ -93,6 +93,8 @@ signals:
                                const QString &text, const QByteArray &avatarData, bool isSynced);
     void friendResponseReceived(bool success, const QString &username, const QString &message);
     void friendRequestCountChanged(int count);    // 待处理好友请求数量变化
+    void friendRequestConflict(const QString &target, const QString &direction,
+                               const QString &message, int requestId);
     void onlineUsersUpdated(const QMap<QString, ContactInfo> &onlineUsers);
 
 private slots:
@@ -118,6 +120,7 @@ private:
     void handleStrangerError(const QJsonObject &msg);
     void handleFriendRequest(const QJsonObject &msg);
     void handleFriendResponse(const QJsonObject &msg);
+    void handleFriendRequestConflict(const QJsonObject &msg);
     void handleProfileUpdated(const QJsonObject &msg);
 
     /// 离线消息去重：检查本地 DB 是否已有同条消息

@@ -60,6 +60,8 @@ private slots:
     void onAcceptFriendRequest(int requestId, const QString &fromUsername);
     void onRejectFriendRequest(int requestId, const QString &fromUsername);
     void onFriendRequestCountChanged(int count);
+    void onFriendRequestConflict(const QString &target, const QString &direction,
+                                 const QString &message, int requestId);
     void onOnlineUsersUpdated(const QMap<QString, ContactInfo> &onlineUsers);
     void onNearbyPeopleEntryClicked();
     void onNearbyAddFriendRequested(const QString &username);
