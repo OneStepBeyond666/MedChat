@@ -192,17 +192,8 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
         "QLabel { border-radius: 50px; border: 3px solid #ffffff; }"
     );
     updateAvatarDisplay();
-
-    // 透明按钮覆盖头像，hover时显示半透明遮罩效果
-    QPushButton *avatarBtn = new QPushButton(avatarArea);
-    avatarBtn->setFixedSize(100, 100);
-    avatarBtn->setStyleSheet(
-        "QPushButton { background: transparent; border: none; border-radius: 50px; }"
-        "QPushButton:hover { background: rgba(0,0,0,0.35); }"
-    );
-    avatarBtn->setCursor(Qt::PointingHandCursor);
-    connect(avatarBtn, &QPushButton::clicked, this, &ProfileDialog::onAvatarClicked);
-    avatarBtn->move(16, 16);
+    // 让头像 Label 本身可点击（通过事件过滤器）
+    m_avatarLabel->installEventFilter(this);
 
     avatarLayout->addWidget(m_avatarLabel);
     avatarLayout->addStretch();
@@ -450,9 +441,6 @@ void ProfileDialog::applyStyles()
         "QComboBox { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QComboBox:focus { border-bottom: 1px solid #07c160; }"
 
-        // 下拉框 — 箭头按钮区域
-        "QComboBox::drop-down { border: none; width: 20px; subcontrol-origin: padding; subcontrol-position: center right; }"
-
         // 下拉框 — 弹出列表（关键：强制白色背景）
         "QComboBox QAbstractItemView { background-color: #ffffff; border: 1px solid #e0e0e0; "
         "  selection-background-color: #f0f0f0; selection-color: #333; color: #333; "
@@ -463,7 +451,6 @@ void ProfileDialog::applyStyles()
         // 日期编辑框
         "QDateEdit { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
         "QDateEdit:focus { border-bottom: 1px solid #07c160; }"
-        "QDateEdit::drop-down { border: none; width: 20px; subcontrol-origin: padding; subcontrol-position: center right; }"
 
         // 日历弹窗（关键：强制白色主题）
         "QCalendarWidget { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 4px; }"
@@ -584,9 +571,27 @@ void ProfileDialog::forceCalendarLightPalette()
     if (!cal)
         return;
 
-    // 关键：对日历控件本身也设置 Fusion 样式，否则弹窗继承系统深色主题
-    cal->setStyle(QStyleFactory::create("Fusion"));
+    // 关键：直接对日历控件设置 stylesheet（QSS 优先级高于 Palette）
+    cal->setStyleSheet(
+        "QCalendarWidget { background-color: #ffffff; }"
+        "QCalendarWidget QWidget { background-color: #ffffff; color: #333333; }"
+        "QCalendarWidget QWidget#qt_calendar_navigationbar { background-color: #ffffff; }"
+        "QCalendarWidget QToolButton { background-color: #ffffff; color: #333333; "
+        "  border: none; border-radius: 4px; padding: 4px 8px; }"
+        "QCalendarWidget QToolButton:hover { background-color: #f0f0f0; }"
+        "QCalendarWidget QToolButton::menu-indicator { image: none; }"
+        "QCalendarWidget QMenu { background-color: #ffffff; border: 1px solid #e0e0e0; color: #333; }"
+        "QCalendarWidget QMenu::item:selected { background-color: #f0f0f0; }"
+        "QCalendarWidget QTableView { background-color: #ffffff; gridline-color: #f0f0f0; "
+        "  selection-background-color: #07c160; selection-color: #ffffff; "
+        "  alternate-background-color: #ffffff; color: #333333; outline: none; }"
+        "QCalendarWidget QTableView::item:hover { background-color: #f5f5f5; }"
+        "QCalendarWidget QTableView::item:selected { background-color: #07c160; color: #ffffff; border-radius: 4px; }"
+        "QCalendarWidget QTableView::item:disabled { color: #cccccc; }"
+    );
 
+    // Fusion 样式 + Palette 作为兜底
+    cal->setStyle(QStyleFactory::create("Fusion"));
     QPalette pal;
     pal.setColor(QPalette::Base, Qt::white);
     pal.setColor(QPalette::Window, Qt::white);
@@ -598,28 +603,22 @@ void ProfileDialog::forceCalendarLightPalette()
     pal.setColor(QPalette::WindowText, QColor("#333333"));
     cal->setPalette(pal);
 
-    // 递归强制日历内部所有子控件使用白色 + Fusion
     for (QObject *child : cal->children()) {
         if (QWidget *w = qobject_cast<QWidget*>(child)) {
             w->setStyle(QStyleFactory::create("Fusion"));
-            QPalette childPal;
-            childPal.setColor(QPalette::Base, Qt::white);
-            childPal.setColor(QPalette::Window, Qt::white);
-            childPal.setColor(QPalette::Text, QColor("#333333"));
-            childPal.setColor(QPalette::ButtonText, QColor("#333333"));
-            childPal.setColor(QPalette::Button, Qt::white);
-            childPal.setColor(QPalette::WindowText, QColor("#333333"));
-            childPal.setColor(QPalette::HighlightedText, Qt::white);
-            childPal.setColor(QPalette::Highlight, QColor("#07c160"));
-            w->setPalette(childPal);
+            w->setPalette(pal);
         }
     }
 }
 
 bool ProfileDialog::eventFilter(QObject *obj, QEvent *event)
 {
-    // 当用户点击 QDateEdit 弹出日历时，日历控件是延迟创建的，
-    // 此时再强制设置其 Palette + Fusion 样式，确保不会被系统深色模式覆盖
+    // 头像点击：直接点击 m_avatarLabel 触发换头像
+    if (obj == m_avatarLabel && event->type() == QEvent::MouseButtonPress) {
+        onAvatarClicked();
+        return true;
+    }
+    // 日历弹窗延迟创建，点击 QDateEdit 时强制设置 Palette
     if (obj == m_birthdayEdit && event->type() == QEvent::MouseButtonPress) {
         QMetaObject::invokeMethod(this, [this]() {
             forceCalendarLightPalette();
