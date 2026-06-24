@@ -332,6 +332,7 @@ void MainWindow::onAddFriendRequested()
 void MainWindow::onContactListUpdated(const QMap<QString, ContactInfo> &contacts)
 {
     m_sidebar->setContacts(contacts);
+    loadSessionsList();  // 联系人列表到达后刷新会话昵称
 }
 
 // ============================================================

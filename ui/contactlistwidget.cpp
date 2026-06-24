@@ -17,54 +17,29 @@
 struct PinyinBound { unsigned short gbk; char initial; };
 
 static const PinyinBound s_pinyinTable[] = {
-    // A (啊 0xB0A1 起)
-    {0xB0A1,'A'},
-    // B (芭 0xB0C5 起)
-    {0xB0C5,'B'},
-    // C (擦 0xB2C1 起)
-    {0xB2C1,'C'},
-    // D (搭 0xB4E6 起)
-    {0xB4E6,'D'},
-    // E (蛾 0xB6E6 起)
-    {0xB6E6,'E'},
-    // F (发 0xB7B6 起)
-    {0xB7B6,'F'},
-    // G (噶 0xB8A6 起)
-    {0xB8A6,'G'},
-    // H (哈 0xB9A6 起)
-    {0xB9A6,'H'},
-    // J (击 0xBBB7 起)
-    {0xBBB7,'J'},
-    // K (喀 0xBFA6 起)
-    {0xBFA6,'K'},
-    // L (垃 0xC0B6 起)
-    {0xC0B6,'L'},
-    // M (妈 0xC2B8 起)
-    {0xC2B8,'M'},
-    // N (拿 0xC4B6 起)
-    {0xC4B6,'N'},
-    // O (哦 0xC5B6 起)
-    {0xC5B6,'O'},
-    // P (啪 0xC5B6 起 — 实际与O相近，但按GBK排序)
-    // 注: O和P在GBK中非常接近，此处按标准表处理
-    {0xC6B6,'P'},
-    // Q (期 0xC8B6 起)
-    {0xC8B6,'Q'},
-    // R (然 0xC9A6 起)
-    {0xC9A6,'R'},
-    // S (撒 0xCBFA 起)
-    {0xCBFA,'S'},
-    // T (塌 0xCDEA 起)
-    {0xCDEA,'T'},
-    // W (挖 0xCEF4 起 — 无U/V)
-    {0xCEF4,'W'},
-    // X (昔 0xD1B6 起)
-    {0xD1B6,'X'},
-    // Y (压 0xD4B6 起)
-    {0xD4B6,'Y'},
-    // Z (匝 0xD5B6 起)
-    {0xD5B6,'Z'},
-    // sentinel
+    {0xB0A1,'A'},  // 啊
+    {0xB0C5,'B'},  // 芭
+    {0xB2C1,'C'},  // 擦
+    {0xB4EE,'D'},  // 搭
+    {0xB6EA,'E'},  // 蛾
+    {0xB7A2,'F'},  // 发
+    {0xB8C1,'G'},  // 噶
+    {0xB9FE,'H'},  // 哈
+    {0xBBF7,'J'},  // 击
+    {0xBFA6,'K'},  // 喀
+    {0xC0AC,'L'},  // 垃
+    {0xC2E8,'M'},  // 妈
+    {0xC4C3,'N'},  // 拿
+    {0xC5B6,'O'},  // 哦
+    {0xC5BE,'P'},  // 啪
+    {0xC6DA,'Q'},  // 期
+    {0xC8BB,'R'},  // 然
+    {0xC8F6,'S'},  // 撒
+    {0xCBFA,'T'},  // 塌
+    {0xCDDA,'W'},  // 挖
+    {0xCEF4,'X'},  // 昔
+    {0xD1B9,'Y'},  // 压
+    {0xD4D1,'Z'},  // 匝
     {0xFFFF,'#'}
 };
 
