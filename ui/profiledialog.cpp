@@ -105,16 +105,21 @@ ProfileDialog::ProfileDialog(Mode mode,
         datePal.setColor(QPalette::Base, Qt::white);
         datePal.setColor(QPalette::Text, QColor("#333333"));
         m_birthdayEdit->setPalette(datePal);
+
+        // 事件过滤器：日历弹窗是延迟创建的，需要在显示时再强制设 Palette
+        m_birthdayEdit->installEventFilter(this);
+        forceCalendarLightPalette();
     }
 }
 
 QWidget* ProfileDialog::createGroupTitle(const QString &title)
 {
     QWidget *widget = new QWidget;
+    widget->setStyleSheet("background-color: #ededed;");
     QHBoxLayout *layout = new QHBoxLayout(widget);
-    layout->setContentsMargins(16, 12, 16, 8);
+    layout->setContentsMargins(16, 8, 16, 8);
     QLabel *label = new QLabel(title);
-    label->setStyleSheet("font-size: 12px; color: #999; font-weight: bold;");
+    label->setStyleSheet("font-size: 13px; color: #666; font-weight: bold; background: transparent;");
     layout->addWidget(label);
     layout->addStretch();
     return widget;
@@ -286,9 +291,8 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     mainLayout->addSpacing(16);
     mainLayout->addWidget(createGroupTitle("账号安全"));
 
-    // 修改密码入口 - 白色卡片风格
+    // 修改密码入口 - 白色卡片风格，悬停浅灰
     QWidget *passItem = new QWidget;
-    passItem->setStyleSheet("background-color: white;");
     passItem->setCursor(Qt::PointingHandCursor);
     QHBoxLayout *passLayout = new QHBoxLayout(passItem);
     passLayout->setContentsMargins(16, 12, 16, 12);
@@ -296,15 +300,22 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     passLabel->setStyleSheet("font-size: 14px; color: #333;");
     passLayout->addWidget(passLabel);
     passLayout->addStretch();
-    QLabel *passArrow = new QLabel(">");
-    passArrow->setStyleSheet("font-size: 14px; color: #ccc;");
+    QLabel *passArrow = new QLabel("›");
+    passArrow->setStyleSheet("font-size: 18px; color: #bbb;");
     passLayout->addWidget(passArrow);
 
+    // 通过样式 + 属性实现悬停效果
+    passItem->setObjectName("passItem");
+    passItem->setStyleSheet(
+        "#passItem { background-color: white; }"
+        "#passItem:hover { background-color: #f5f5f5; }"
+    );
+
+    // 用透明按钮覆盖整个区域接收点击
     QPushButton *passBtn = new QPushButton(passItem);
-    passBtn->setFixedSize(passItem->sizeHint().width(), 44);
+    passBtn->setGeometry(0, 0, 420, 44);
     passBtn->setStyleSheet(
         "QPushButton { background: transparent; border: none; }"
-        "QPushButton:hover { background: rgba(0,0,0,0.02); }"
     );
     passBtn->setCursor(Qt::PointingHandCursor);
     connect(passBtn, &QPushButton::clicked, this, &ProfileDialog::onChangePasswordClicked);
@@ -568,4 +579,45 @@ void ProfileDialog::onAddFriendClicked()
 void ProfileDialog::onChangePasswordClicked()
 {
     emit changePasswordRequested();
+}
+
+void ProfileDialog::forceCalendarLightPalette()
+{
+    QCalendarWidget *cal = m_birthdayEdit->findChild<QCalendarWidget*>();
+    if (!cal)
+        return;
+
+    QPalette pal;
+    pal.setColor(QPalette::Base, Qt::white);
+    pal.setColor(QPalette::Window, Qt::white);
+    pal.setColor(QPalette::Text, QColor("#333333"));
+    pal.setColor(QPalette::ButtonText, QColor("#333333"));
+    pal.setColor(QPalette::HighlightedText, Qt::white);
+    pal.setColor(QPalette::Highlight, QColor("#07c160"));
+    cal->setPalette(pal);
+
+    // 强制日历内部所有子控件也使用白色
+    for (QObject *child : cal->children()) {
+        if (QWidget *w = qobject_cast<QWidget*>(child)) {
+            QPalette childPal = w->palette();
+            childPal.setColor(QPalette::Base, Qt::white);
+            childPal.setColor(QPalette::Window, Qt::white);
+            childPal.setColor(QPalette::Text, QColor("#333333"));
+            childPal.setColor(QPalette::ButtonText, QColor("#333333"));
+            w->setPalette(childPal);
+        }
+    }
+}
+
+bool ProfileDialog::eventFilter(QObject *obj, QEvent *event)
+{
+    // 当用户点击 QDateEdit 弹出日历时，日历控件是延迟创建的，
+    // 此时再强制设置其 Palette，确保不会被系统深色模式覆盖
+    if (obj == m_birthdayEdit && event->type() == QEvent::MouseButtonPress) {
+        // 先让 Qt 创建/显示日历弹窗
+        QMetaObject::invokeMethod(this, [this]() {
+            forceCalendarLightPalette();
+        }, Qt::QueuedConnection);
+    }
+    return QDialog::eventFilter(obj, event);
 }

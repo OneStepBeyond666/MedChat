@@ -49,10 +49,12 @@ private:
     void setupOtherUI(QVBoxLayout *layout);
     void updateAvatarDisplay();
     void applyStyles();
+    void forceCalendarLightPalette();
     QWidget* createGroupTitle(const QString &title);
     QWidget* createSettingItem(const QString &label, QWidget *widget, QWidget *extra = nullptr);
     QWidget* createClickableItem(const QString &label, const QString &value);
     void addSeparator(QVBoxLayout *layout);
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
     Mode m_mode;
     QString m_username;
