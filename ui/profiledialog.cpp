@@ -11,6 +11,9 @@
 #include <QCalendarWidget>
 #include <QMouseEvent>
 #include <QScrollBar>
+#include <QStyleFactory>
+#include <QPalette>
+#include <QAbstractItemView>
 
 ProfileDialog::ProfileDialog(Mode mode,
                              const QString &username,
@@ -74,6 +77,35 @@ ProfileDialog::ProfileDialog(Mode mode,
     mainLayout->addWidget(scrollArea);
 
     applyStyles();
+
+    // ---- 强制浅色主题（解决系统深色模式下弹窗黑底问题）----
+    // Fusion 风格让所有子弹窗（下拉列表、日历）都遵循 QSS/Palette
+    setStyle(QStyleFactory::create("Fusion"));
+
+    if (mode == SelfProfile) {
+        // QComboBox：强制白色 Palette（下拉列表弹窗）
+        QPalette comboPal = m_genderCombo->palette();
+        comboPal.setColor(QPalette::Base, Qt::white);
+        comboPal.setColor(QPalette::Window, Qt::white);
+        comboPal.setColor(QPalette::Text, QColor("#333333"));
+        comboPal.setColor(QPalette::ButtonText, QColor("#333333"));
+        m_genderCombo->setPalette(comboPal);
+        // 下拉列表视图也强制白色
+        if (QAbstractItemView *view = m_genderCombo->view()) {
+            QPalette viewPal = view->palette();
+            viewPal.setColor(QPalette::Base, Qt::white);
+            viewPal.setColor(QPalette::Text, QColor("#333333"));
+            viewPal.setColor(QPalette::HighlightedText, QColor("#333333"));
+            viewPal.setColor(QPalette::Highlight, QColor("#f0f0f0"));
+            view->setPalette(viewPal);
+        }
+
+        // QDateEdit：强制白色 Palette（日历弹窗）
+        QPalette datePal = m_birthdayEdit->palette();
+        datePal.setColor(QPalette::Base, Qt::white);
+        datePal.setColor(QPalette::Text, QColor("#333333"));
+        m_birthdayEdit->setPalette(datePal);
+    }
 }
 
 QWidget* ProfileDialog::createGroupTitle(const QString &title)
