@@ -9,11 +9,9 @@
 #include <QTimer>
 #include <QVector>
 #include <QMessageBox>
-#include <QMenu>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QDragEnterEvent>
-#include <QStandardPaths>
 #include <QDropEvent>
 #include <QMimeData>
 #include <QUrl>
@@ -185,36 +183,16 @@ void ChatWidget::applyStyles()
 }
 
 // ============================================================
-// + 按钮菜单
+// + 按钮：直接打开文件选择对话框
 // ============================================================
 
 void ChatWidget::onPlusClicked()
 {
     if (m_partner.isEmpty()) return;
 
-    if (!m_plusMenu) {
-        m_plusMenu = new QMenu(this);
-        QAction *actFile = m_plusMenu->addAction("发送文件");
-        QAction *actImage = m_plusMenu->addAction("发送图片");
-
-        connect(actFile, &QAction::triggered, this, [this]() {
-            QString filePath = QFileDialog::getOpenFileName(this, "选择要发送的文件",
-                QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
-            if (!filePath.isEmpty())
-                showFilePreview(filePath);
-        });
-        connect(actImage, &QAction::triggered, this, [this]() {
-            QString filePath = QFileDialog::getOpenFileName(this, "选择要发送的图片",
-                QStandardPaths::writableLocation(QStandardPaths::PicturesLocation),
-                "图片文件 (*.png *.jpg *.jpeg *.bmp *.gif)");
-            if (!filePath.isEmpty())
-                showFilePreview(filePath);
-        });
-    }
-
-    // 菜单在按钮下方弹出
-    QPoint pos = m_plusBtn->mapToGlobal(QPoint(0, m_plusBtn->height()));
-    m_plusMenu->popup(pos);
+    QString filePath = QFileDialog::getOpenFileName(this, "选择要发送的文件");
+    if (!filePath.isEmpty())
+        showFilePreview(filePath);
 }
 
 // ============================================================

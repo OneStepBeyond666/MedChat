@@ -15,7 +15,6 @@
 
 class MessageBubble;
 class FileMessageCard;
-class QMenu;
 struct StoredMessage;
 
 struct ChatMessage {
@@ -93,7 +92,6 @@ private:
     QTextEdit *m_inputEdit;
     QToolButton *m_plusBtn;
     QPushButton *m_sendBtn;
-    QMenu *m_plusMenu;
 
     // 文件预览区
     QWidget *m_previewArea;
