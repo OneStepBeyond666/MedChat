@@ -10,6 +10,7 @@
 #include "ui/friendrequestwidget.h"
 #include "ui/friendrequestnotification.h"
 #include "ui/nearbypeoplewidget.h"
+#include "ui/changepassworddialog.h"
 #include <QSplitter>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -283,6 +284,20 @@ void MainWindow::onAvatarClicked()
             dlg->accept();
         });
 
+    connect(dlg, &ProfileDialog::changePasswordRequested,
+        this, &MainWindow::onChangePasswordRequested);
+
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+// ============================================================
+// 修改密码
+// ============================================================
+
+void MainWindow::onChangePasswordRequested()
+{
+    ChangePasswordDialog *dlg = new ChangePasswordDialog(m_client, this);
     dlg->exec();
     dlg->deleteLater();
 }

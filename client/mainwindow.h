@@ -16,6 +16,7 @@ class ProfileDialog;
 class FriendRequestWidget;
 class FriendRequestNotification;
 class NearbyPeopleWidget;
+class ChangePasswordDialog;
 #include "chatclient.h"
 
 class MainWindow : public QMainWindow
@@ -67,6 +68,7 @@ private slots:
     void onNearbyAddFriendRequested(const QString &username);
     void onDisconnected();
     void onAvatarClicked();
+    void onChangePasswordRequested();
     void onContactProfileChanged(const QString &username, const QString &nickname,
                                   const QByteArray &avatarData);
     void onAddFriendRequested();
