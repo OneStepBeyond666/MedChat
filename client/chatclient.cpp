@@ -225,6 +225,10 @@ void ChatClient::handleAuthResult(const QJsonObject &msg)
         m_myNickname = msg["nickname"].toString();
         if (m_myNickname.isEmpty())
             m_myNickname = m_username;
+        m_mySignature = msg["signature"].toString();
+        m_myGender = msg["gender"].toInt(0);
+        m_myBirthday = msg["birthday"].toString();
+        m_myRegion = msg["region"].toString();
         // 解析头像
         QString avatarB64 = msg["avatar_base64"].toString();
         if (!avatarB64.isEmpty()) {
@@ -247,6 +251,10 @@ void ChatClient::handleContactList(const QJsonObject &msg)
         if (ci.nickname.isEmpty()) ci.nickname = ci.username;
         ci.role = u["role"].toString();
         ci.online = u["online"].toBool();
+        ci.signature = u["signature"].toString();
+        ci.gender = u["gender"].toInt(0);
+        ci.birthday = u["birthday"].toString();
+        ci.region = u["region"].toString();
         // 解析头像
         QString avatarB64 = u["avatar_base64"].toString();
         if (!avatarB64.isEmpty())
@@ -274,6 +282,10 @@ void ChatClient::handleOnlineStatus(const QJsonObject &msg)
         if (ci.nickname.isEmpty()) ci.nickname = ci.username;
         ci.role = u["role"].toString();
         ci.online = true;
+        ci.signature = u["signature"].toString();
+        ci.gender = u["gender"].toInt(0);
+        ci.birthday = u["birthday"].toString();
+        ci.region = u["region"].toString();
         QString avatarB64 = u["avatar_base64"].toString();
         if (!avatarB64.isEmpty())
             ci.avatarData = QByteArray::fromBase64(avatarB64.toLatin1());

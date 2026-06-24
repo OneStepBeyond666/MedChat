@@ -158,8 +158,13 @@ void ChatServer::handleRegister(ClientHandler *handler, const QJsonObject &msg)
         handler->setUsername(username);
         handler->setRole(role);
         QString actualNick = nickname.trimmed().isEmpty() ? username : nickname.trimmed();
+        UserInfo info = m_userManager->getUserInfoByName(username);
         QJsonObject authResp = Protocol::makeAuthResult(true, "注册成功", role);
-        authResp["nickname"] = actualNick;
+        authResp["nickname"] = info.nickname;
+        authResp["signature"] = info.signature;
+        authResp["gender"] = info.gender;
+        authResp["birthday"] = info.birthday;
+        authResp["region"] = info.region;
         handler->sendMessage(authResp);
         qDebug() << QString("[注册成功] %1 (昵称: %2, %3) 已注册并上线")
                         .arg(username, actualNick, role == "doctor" ? "医生" : "患者");
@@ -198,6 +203,10 @@ void ChatServer::handleLogin(ClientHandler *handler, const QJsonObject &msg)
         UserInfo info = m_userManager->getUserInfoByName(username);
         QJsonObject authResp = Protocol::makeAuthResult(true, "登录成功", role);
         authResp["nickname"] = info.nickname;
+        authResp["signature"] = info.signature;
+        authResp["gender"] = info.gender;
+        authResp["birthday"] = info.birthday;
+        authResp["region"] = info.region;
         if (!info.avatarBlob.isEmpty())
             authResp["avatar_base64"] = QString::fromLatin1(info.avatarBlob.toBase64());
         handler->sendMessage(authResp);
@@ -424,6 +433,10 @@ void ChatServer::broadcastOnlineStatus()
                 u["nickname"] = info.nickname;
                 u["role"] = other->role();
                 u["online"] = true;
+                u["signature"] = info.signature;
+                u["gender"] = info.gender;
+                u["birthday"] = info.birthday;
+                u["region"] = info.region;
                 if (!info.avatarBlob.isEmpty())
                     u["avatar_base64"] = QString::fromLatin1(info.avatarBlob.toBase64());
                 users.append(u);
@@ -461,6 +474,10 @@ void ChatServer::sendContactList(ClientHandler *handler)
         u["nickname"] = info.nickname;
         u["role"] = info.role;
         u["online"] = onlineNames.contains(info.username);
+        u["signature"] = info.signature;
+        u["gender"] = info.gender;
+        u["birthday"] = info.birthday;
+        u["region"] = info.region;
         if (!info.avatarBlob.isEmpty())
             u["avatar_base64"] = QString::fromLatin1(info.avatarBlob.toBase64());
         users.append(u);

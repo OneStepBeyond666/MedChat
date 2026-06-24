@@ -8,7 +8,9 @@
 #include <QScrollArea>
 #include <QFrame>
 #include <QComboBox>
+#include <QCalendarWidget>
 #include <QMouseEvent>
+#include <QScrollBar>
 
 ProfileDialog::ProfileDialog(Mode mode,
                              const QString &username,
@@ -58,7 +60,7 @@ ProfileDialog::ProfileDialog(Mode mode,
 
     QWidget *contentWidget = new QWidget;
     QVBoxLayout *contentLayout = new QVBoxLayout(contentWidget);
-    contentLayout->setContentsMargins(0, 0, 0, 0);
+    contentLayout->setContentsMargins(0, 0, 0, 20);
     contentLayout->setSpacing(0);
     contentLayout->setAlignment(Qt::AlignTop);
 
@@ -248,19 +250,33 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     mainLayout->addWidget(roleItem);
 
     // 账号安全分组
+    addSeparator(mainLayout);
     mainLayout->addSpacing(16);
     mainLayout->addWidget(createGroupTitle("账号安全"));
 
-    // 修改密码入口 - 使用 QPushButton 模拟可点击行
-    QPushButton *passBtn = new QPushButton("修改密码  >");
+    // 修改密码入口 - 白色卡片风格
+    QWidget *passItem = new QWidget;
+    passItem->setStyleSheet("background-color: white;");
+    passItem->setCursor(Qt::PointingHandCursor);
+    QHBoxLayout *passLayout = new QHBoxLayout(passItem);
+    passLayout->setContentsMargins(16, 12, 16, 12);
+    QLabel *passLabel = new QLabel("修改密码");
+    passLabel->setStyleSheet("font-size: 14px; color: #333;");
+    passLayout->addWidget(passLabel);
+    passLayout->addStretch();
+    QLabel *passArrow = new QLabel(">");
+    passArrow->setStyleSheet("font-size: 14px; color: #ccc;");
+    passLayout->addWidget(passArrow);
+
+    QPushButton *passBtn = new QPushButton(passItem);
+    passBtn->setFixedSize(passItem->sizeHint().width(), 44);
     passBtn->setStyleSheet(
-        "QPushButton { background-color: white; border: none; text-align: left; "
-        "padding: 12px 16px; font-size: 14px; color: #333; }"
-        "QPushButton:hover { background-color: #f8f8f8; }"
+        "QPushButton { background: transparent; border: none; }"
+        "QPushButton:hover { background: rgba(0,0,0,0.02); }"
     );
     passBtn->setCursor(Qt::PointingHandCursor);
     connect(passBtn, &QPushButton::clicked, this, &ProfileDialog::onChangePasswordClicked);
-    mainLayout->addWidget(passBtn);
+    mainLayout->addWidget(passItem);
 }
 
 void ProfileDialog::addSeparator(QVBoxLayout *layout)
@@ -376,14 +392,71 @@ void ProfileDialog::setupOtherUI(QVBoxLayout *mainLayout)
 void ProfileDialog::applyStyles()
 {
     setStyleSheet(
-        "QWidget { background-color: #f5f5f5; }"
-        "QLineEdit { background: transparent; border: none; padding: 2px; }"
-        "QLineEdit:focus { border: none; }"
-        "QComboBox { background: transparent; border: none; padding: 2px; }"
-        "QComboBox::drop-down { border: none; width: 20px; }"
-        "QComboBox QAbstractItemView { border: 1px solid #ddd; background: white; }"
-        "QDateEdit { background: transparent; border: none; padding: 2px; }"
-        "QDateEdit::drop-down { border: none; width: 20px; }"
+        // 全局
+        "QWidget { background-color: #f5f5f5; font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; }"
+
+        // 输入框
+        "QLineEdit { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
+        "QLineEdit:focus { border-bottom: 1px solid #07c160; }"
+        "QLineEdit:disabled { color: #999; }"
+
+        // 下拉框 — 主体
+        "QComboBox { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
+        "QComboBox:focus { border-bottom: 1px solid #07c160; }"
+
+        // 下拉框 — 箭头按钮
+        "QComboBox::drop-down { border: none; width: 24px; subcontrol-origin: padding; subcontrol-position: center right; }"
+        "QComboBox::down-arrow { image: none; border-left: 4px solid transparent; border-right: 4px solid transparent; "
+        "  border-top: 5px solid #999; margin-right: 4px; }"
+        "QComboBox::down-arrow:hover { border-top-color: #07c160; }"
+
+        // 下拉框 — 弹出列表（关键：强制白色背景）
+        "QComboBox QAbstractItemView { background-color: #ffffff; border: 1px solid #e0e0e0; "
+        "  selection-background-color: #f0f0f0; selection-color: #333; color: #333; "
+        "  outline: none; padding: 4px; }"
+        "QComboBox QAbstractItemView::item { padding: 6px 12px; }"
+        "QComboBox QAbstractItemView::item:hover { background-color: #f5f5f5; }"
+
+        // 日期编辑框
+        "QDateEdit { background: transparent; border: none; padding: 4px 2px; font-size: 14px; color: #333; }"
+        "QDateEdit:focus { border-bottom: 1px solid #07c160; }"
+        "QDateEdit::drop-down { border: none; width: 24px; subcontrol-origin: padding; subcontrol-position: center right; }"
+        "QDateEdit::down-arrow { image: none; border-left: 4px solid transparent; border-right: 4px solid transparent; "
+        "  border-top: 5px solid #999; margin-right: 4px; }"
+        "QDateEdit::down-arrow:hover { border-top-color: #07c160; }"
+
+        // 日历弹窗（关键：强制白色主题）
+        "QCalendarWidget { background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 4px; }"
+
+        // 日历 — 顶部导航栏
+        "QCalendarWidget QWidget#qt_calendar_navigationbar { background-color: #ffffff; }"
+        "QCalendarWidget QToolButton { background-color: #ffffff; color: #333; border: none; "
+        "  border-radius: 4px; padding: 4px 8px; font-size: 13px; }"
+        "QCalendarWidget QToolButton:hover { background-color: #f0f0f0; }"
+        "QCalendarWidget QToolButton::menu-indicator { image: none; }"
+
+        // 日历 — 月份/年份菜单
+        "QCalendarWidget QMenu { background-color: #ffffff; border: 1px solid #e0e0e0; color: #333; }"
+        "QCalendarWidget QMenu::item:selected { background-color: #f0f0f0; }"
+
+        // 日历 — 星期标题行
+        "QCalendarWidget QWidget { background-color: #ffffff; }"
+        "QCalendarWidget QTableView { background-color: #ffffff; gridline-color: #f0f0f0; "
+        "  selection-background-color: #07c160; selection-color: #ffffff; "
+        "  alternate-background-color: #ffffff; color: #333; outline: none; }"
+        "QCalendarWidget QTableView::item:hover { background-color: #f5f5f5; color: #333; }"
+        "QCalendarWidget QTableView::item:selected { background-color: #07c160; color: #ffffff; border-radius: 4px; }"
+
+        // 日历 — 非本月日期
+        "QCalendarWidget QTableView::item:disabled { color: #ccc; }"
+
+        // 滚动区域
+        "QScrollArea { background-color: #f5f5f5; border: none; }"
+        "QScrollBar:vertical { background: #f5f5f5; width: 6px; margin: 0; border: none; }"
+        "QScrollBar::handle:vertical { background: #ccc; border-radius: 3px; min-height: 30px; }"
+        "QScrollBar::handle:vertical:hover { background: #aaa; }"
+        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
+        "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
     );
 }
 
