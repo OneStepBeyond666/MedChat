@@ -529,6 +529,9 @@ void ChatServer::handleUpdateProfile(ClientHandler *handler, const QJsonObject &
     QString birthday = msg["birthday"].toString();
     QString region = msg["region"].toString();
 
+    qDebug() << QString("[资料更新] 收到 %1 的资料更新请求: nick=%2 sig=%3 gender=%4 birthday=%5 region=%6")
+                .arg(username, nickname, signature).arg(gender).arg(birthday, region);
+
     // 更新昵称
     if (!nickname.isEmpty()) {
         if (!m_userManager->updateNickname(username, nickname)) {
@@ -575,6 +578,9 @@ void ChatServer::handleUpdateProfile(ClientHandler *handler, const QJsonObject &
 
     // 构建广播消息，通知所有在线联系人
     UserInfo updatedInfo = m_userManager->getUserInfoByName(username);
+    qDebug() << QString("[资料更新] 数据库读回 %1: nick=%2 sig=%3 gender=%4 birthday=%5 region=%6")
+                .arg(username, updatedInfo.nickname, updatedInfo.signature)
+                .arg(updatedInfo.gender).arg(updatedInfo.birthday, updatedInfo.region);
     QJsonObject broadcast = Protocol::makeMsg(MsgType::ProfileUpdated);
     broadcast["username"] = username;
     broadcast["nickname"] = updatedInfo.nickname;
