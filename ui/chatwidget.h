@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QTextEdit>
 #include <QPushButton>
+#include <QToolButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
 #include <QMap>
@@ -14,6 +15,7 @@
 
 class MessageBubble;
 class FileMessageCard;
+class QMenu;
 struct StoredMessage;
 
 struct ChatMessage {
@@ -54,13 +56,15 @@ public:
 signals:
     void sendMessage(const QString &to, const QString &text);
     void sendFileRequest(const QString &to);
+    void sendFileWithPath(const QString &to, const QString &filePath);
     void fileAccepted(const QString &fileId);
     void fileRejected(const QString &fileId);
     void fileOpenRequested(const QString &fileId);
 
 private slots:
     void onSendClicked();
-    void onFileBtnClicked();
+    void onPlusClicked();
+    void onPreviewClose();
     void onFileAcceptClicked();
     void onFileRejectClicked();
     void onFileOpenClicked();
@@ -70,15 +74,32 @@ private:
     void applyStyles();
     void scrollToBottom();
     QString formatTime(qint64 msecsSinceEpoch);
+    void showFilePreview(const QString &filePath);
+    void clearFilePreview();
+    QString humanFileSize(qint64 bytes) const;
+
+    // 拖拽
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dragLeaveEvent(QDragLeaveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
     QLabel *m_partnerLabel;
     QLabel *m_partnerRoleLabel;
     QWidget *m_messageContainer;
     QVBoxLayout *m_messageLayout;
     QScrollArea *m_scrollArea;
+
+    // 输入区
     QTextEdit *m_inputEdit;
+    QToolButton *m_plusBtn;
     QPushButton *m_sendBtn;
-    QPushButton *m_fileBtn;
+    QMenu *m_plusMenu;
+
+    // 文件预览区
+    QWidget *m_previewArea;
+    QLabel *m_previewNameLabel;
+    QLabel *m_previewSizeLabel;
+    QString m_pendingFilePath;
 
     QString m_partner;
     QString m_partnerRole;

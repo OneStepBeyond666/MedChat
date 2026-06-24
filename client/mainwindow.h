@@ -39,6 +39,7 @@ private slots:
     void onMessageAck(const QString &to, qint64 timestamp);
     void onSendTextMessage(const QString &to, const QString &text);
     void onSendFileRequest(const QString &to);
+    void onSendFileWithPath(const QString &to, const QString &filePath);
     void onFileOfferReceived(const QString &from, const QString &fileName,
                               qint64 fileSize, const QString &fileId);
     void onFileAccepted(const QString &fileId);

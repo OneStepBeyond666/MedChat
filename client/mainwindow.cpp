@@ -98,6 +98,7 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
 
     connect(m_chatWidget, &ChatWidget::sendMessage, this, &MainWindow::onSendTextMessage);
     connect(m_chatWidget, &ChatWidget::sendFileRequest, this, &MainWindow::onSendFileRequest);
+    connect(m_chatWidget, &ChatWidget::sendFileWithPath, this, &MainWindow::onSendFileWithPath);
     connect(m_chatWidget, &ChatWidget::fileAccepted, this, &MainWindow::onFileAcceptFromUI);
     connect(m_chatWidget, &ChatWidget::fileRejected, this, &MainWindow::onFileRejectFromUI);
 
@@ -506,6 +507,63 @@ void MainWindow::onSendFileRequest(const QString &to)
     }
 
     // 记录待发送目标和文件路径，等待 fileSendInitiated 信号获取真实 fileId
+    m_pendingSendFileTo = to;
+    m_pendingSendFilePath = filePath;
+    m_client->sendFile(to, filePath);
+}
+
+void MainWindow::onSendFileWithPath(const QString &to, const QString &filePath)
+{
+    if (filePath.isEmpty()) return;
+
+    QFileInfo fi(filePath);
+    if (!fi.exists()) return;
+
+    if (fi.size() > Constants::MAX_FILE_SIZE) {
+        QMessageBox::warning(this, "文件过大",
+            QString("文件 \"%1\" 超过100MB传输限制，无法发送。").arg(fi.fileName()));
+        return;
+    }
+
+    // 文件传输助手：本地复制
+    if (to == QString::fromUtf8(MsgType::FileHelper)) {
+        qint64 now = QDateTime::currentMSecsSinceEpoch();
+        QString helperUid = QString::fromUtf8(MsgType::FileHelper);
+        QString ym = QDate::currentDate().toString("yyyy/MM");
+        QString targetDir = LocalDB::instance().rootPath()
+                            + "/" + Constants::FILE_SUBDIR + "/" + ym;
+        QDir().mkpath(targetDir);
+        QString savePath = LocalDB::instance().generateUniqueFilePath(targetDir, fi.fileName());
+        QFile::copy(filePath, savePath);
+        QFileInfo saveFi(savePath);
+
+        QString sendId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        QString recvId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        FileRecord sendRec;
+        sendRec.fileId = sendId;
+        sendRec.originalName = fi.fileName();
+        sendRec.saveName = saveFi.fileName();
+        sendRec.savePath = savePath;
+        sendRec.size = fi.size();
+        sendRec.status = 1;
+        sendRec.yearMonth = ym;
+        LocalDB::instance().insertFileRecord(sendRec);
+        FileRecord recvRec = sendRec;
+        recvRec.fileId = recvId;
+        LocalDB::instance().insertFileRecord(recvRec);
+
+        m_chatWidget->addFileMessage("me", fi.fileName(), fi.size(), sendId, true);
+        m_chatWidget->setFileCompleted(sendId);
+        persistFileMessage(helperUid, fi.fileName(), sendId, now, true);
+        m_chatWidget->addFileMessage("me", fi.fileName(), fi.size(), recvId, false);
+        m_chatWidget->setFileCompleted(recvId);
+        persistFileMessage(helperUid, fi.fileName(), recvId, now, false);
+        updateSession(helperUid, "[文件] " + fi.fileName(), now);
+        statusBar()->showMessage("文件已保存到: " + savePath, 5000);
+        return;
+    }
+
+    // 普通联系人：走网络发送
     m_pendingSendFileTo = to;
     m_pendingSendFilePath = filePath;
     m_client->sendFile(to, filePath);
