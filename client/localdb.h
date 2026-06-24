@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QSqlDatabase>
 #include <QString>
+#include <QByteArray>
 #include <QVector>
 
 // ============================================================
@@ -16,6 +17,9 @@ struct SessionInfo {
     QString lastMsgPreview;  // 最后一条消息预览（前50字）
     qint64  lastTime = 0;    // 最后消息时间戳 (ms)
     int     unreadCount = 0; // 未读消息数
+    // 运行时合并字段（不存储在数据库中，由 MainWindow 从 contacts 合并）
+    QString nickname;
+    QByteArray avatarData;
 };
 
 struct FileRecord {

@@ -349,7 +349,7 @@ void LoginWindow::onRegisterClicked()
 // 认证结果
 // ============================================================
 
-void LoginWindow::onAuthResult(bool success, const QString &message, const QString &role)
+void LoginWindow::onAuthResult(bool success, const QString &message, const QString &role, const QByteArray &avatarData)
 {
     setButtonsEnabled(true);
     if (success) {
@@ -357,7 +357,7 @@ void LoginWindow::onAuthResult(bool success, const QString &message, const QStri
         QString username = (m_stack->currentIndex() == 0)
             ? m_loginUserEdit->text().trimmed()
             : m_regUserEdit->text().trimmed();
-        emit loginSuccess(username, role, m_client->myNickname());
+        emit loginSuccess(username, role, m_client->myNickname(), avatarData);
     } else {
         showStatusMessage(message, true);
     }

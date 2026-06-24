@@ -3,7 +3,8 @@
 #include "localdb.h"
 #include "common/protocol.h"
 #include "common/constants.h"
-#include "ui/contactlistwidget.h"
+#include "ui/leftsidebar.h"
+#include "ui/profiledialog.h"
 #include "ui/chatwidget.h"
 #include <QSplitter>
 #include <QVBoxLayout>
@@ -22,8 +23,9 @@
 #include <QDebug>
 
 MainWindow::MainWindow(ChatClient *client, const QString &username, const QString &role,
-                       const QString &nickname, QWidget *parent)
-    : QMainWindow(parent), m_client(client), m_username(username), m_role(role), m_nickname(nickname)
+                       const QString &nickname, const QByteArray &avatarData, QWidget *parent)
+    : QMainWindow(parent), m_client(client), m_username(username), m_role(role),
+      m_nickname(nickname), m_avatarData(avatarData)
 {
     setWindowTitle(QString("远程问诊系统 - %1 (%2)").arg(m_nickname, role == "doctor" ? "医生" : "患者"));
     resize(960, 640);
@@ -55,7 +57,18 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_client, &ChatClient::friendRequestReceived, this, &MainWindow::onFriendRequestReceived);
     connect(m_client, &ChatClient::disconnected, this, &MainWindow::onDisconnected);
 
-    connect(m_contactList, &ContactListWidget::contactSelected, this, &MainWindow::onContactSelected);
+    connect(m_client, &ChatClient::contactProfileChanged, this, &MainWindow::onContactProfileChanged);
+
+    connect(m_sidebar, &LeftSidebar::contactSelected, this, &MainWindow::onContactSelected);
+    connect(m_sidebar, &LeftSidebar::sessionSelected, this, &MainWindow::onSessionSelected);
+    connect(m_sidebar, &LeftSidebar::avatarClicked, this, &MainWindow::onAvatarClicked);
+
+    // 初始化侧栏资料
+    m_sidebar->setSelfProfile(m_nickname, m_avatarData);
+
+    // 加载会话列表
+    loadSessionsList();
+
     connect(m_chatWidget, &ChatWidget::sendMessage, this, &MainWindow::onSendTextMessage);
     connect(m_chatWidget, &ChatWidget::sendFileRequest, this, &MainWindow::onSendFileRequest);
     connect(m_chatWidget, &ChatWidget::fileAccepted, this, &MainWindow::onFileAcceptFromUI);
@@ -76,17 +89,10 @@ void MainWindow::setupUI()
     QSplitter *splitter = new QSplitter(Qt::Horizontal);
     splitter->setHandleWidth(1);
 
-    // 左侧联系人列表
-    QWidget *leftPanel = new QWidget;
-    leftPanel->setObjectName("leftPanel");
-    leftPanel->setFixedWidth(260);
-    QVBoxLayout *leftLayout = new QVBoxLayout(leftPanel);
-    leftLayout->setContentsMargins(0, 0, 0, 0);
-
-    m_contactList = new ContactListWidget;
-    leftLayout->addWidget(m_contactList);
-
-    splitter->addWidget(leftPanel);
+    // 左侧：LeftSidebar（双Tab视图）
+    m_sidebar = new LeftSidebar;
+    m_sidebar->setFixedWidth(280);
+    splitter->addWidget(m_sidebar);
 
     // 右侧：QStackedWidget 切换占位页 / 聊天页
     m_chatStack = new QStackedWidget;
@@ -119,7 +125,6 @@ void MainWindow::setupUI()
 void MainWindow::applyStyles()
 {
     setStyleSheet(
-        "#leftPanel { background: #f0f0f0; border-right: 1px solid #ddd; }"
         "QSplitter::handle { background: #ddd; }"
         "QStatusBar { background: #f5f5f5; font-size: 12px; color: #666; }"
         "#chatPlaceholder { background: #fafafa; }"
@@ -145,7 +150,7 @@ void MainWindow::onContactSelected(const QString &username)
     if (m_chatWidget->currentPartner() == username) {
         m_chatWidget->clearChat();
         m_chatStack->setCurrentIndex(0);
-        m_contactList->clearSelection();
+        m_sidebar->clearSelection();
         return;
     }
 
@@ -186,12 +191,101 @@ void MainWindow::loadMessagesFromDB(const QString &contactUid, const QString &pa
 }
 
 // ============================================================
+// 会话列表
+// ============================================================
+
+void MainWindow::loadSessionsList()
+{
+    QVector<SessionInfo> sessions = LocalDB::instance().loadSessions();
+    QMap<QString, ContactInfo> contacts = m_client->contacts();
+
+    // 合并昵称和头像数据到每个会话
+    for (int i = 0; i < sessions.size(); ++i) {
+        const QString &uid = sessions[i].contactUid;
+        if (uid == QString::fromUtf8(MsgType::FileHelper)) {
+            sessions[i].nickname = QString::fromUtf8(MsgType::FileHelper);
+            // 文件传输助手使用默认头像
+        } else if (contacts.contains(uid)) {
+            const ContactInfo &ci = contacts.value(uid);
+            sessions[i].nickname = ci.nickname.isEmpty() ? uid : ci.nickname;
+            sessions[i].avatarData = ci.avatarData;
+        } else {
+            sessions[i].nickname = uid;
+        }
+    }
+
+    m_sidebar->setSessions(sessions);
+}
+
+// ============================================================
+// 从聊天 Tab 会话列表点击联系人
+// ============================================================
+
+void MainWindow::onSessionSelected(const QString &username)
+{
+    // 复用 onContactSelected 的逻辑
+    onContactSelected(username);
+}
+
+// ============================================================
+// 头像点击 → 打开个人资料编辑
+// ============================================================
+
+void MainWindow::onAvatarClicked()
+{
+    ProfileDialog *dlg = new ProfileDialog(
+        ProfileDialog::SelfProfile, m_username, m_nickname, m_role, m_avatarData, this);
+
+    connect(dlg, &ProfileDialog::profileSaved,
+        this, [this, dlg](const QString &nickname, const QByteArray &avatarData) {
+            // 更新本地状态
+            m_nickname = nickname;
+            m_avatarData = avatarData;
+
+            // 发送到服务器
+            m_client->sendProfileUpdate(nickname, avatarData);
+
+            // 更新侧栏显示
+            m_sidebar->setSelfProfile(nickname, avatarData);
+
+            // 更新窗口标题
+            setWindowTitle(QString("远程问诊系统 - %1 (%2)")
+                .arg(m_nickname, m_role == "doctor" ? "医生" : "患者"));
+
+            dlg->accept();
+        });
+
+    dlg->exec();
+    dlg->deleteLater();
+}
+
+// ============================================================
+// 联系人资料变更（服务端推送）
+// ============================================================
+
+void MainWindow::onContactProfileChanged(const QString &username, const QString &nickname,
+                                          const QByteArray &avatarData)
+{
+    // 如果是自己的资料变更
+    if (username == m_username) {
+        m_nickname = nickname;
+        m_avatarData = avatarData;
+        m_sidebar->setSelfProfile(nickname, avatarData);
+        setWindowTitle(QString("远程问诊系统 - %1 (%2)")
+            .arg(m_nickname, m_role == "doctor" ? "医生" : "患者"));
+    }
+
+    // 刷新会话列表（昵称/头像可能已变）
+    loadSessionsList();
+}
+
+// ============================================================
 // 联系人列表更新
 // ============================================================
 
 void MainWindow::onContactListUpdated(const QMap<QString, ContactInfo> &contacts)
 {
-    m_contactList->updateContacts(contacts);
+    m_sidebar->setContacts(contacts);
 }
 
 // ============================================================
@@ -500,6 +594,9 @@ void MainWindow::updateSession(const QString &contactUid, const QString &preview
     si.lastTime = timestamp;
     si.unreadCount = 0;
     LocalDB::instance().upsertSession(si);
+
+    // 刷新侧栏会话列表
+    loadSessionsList();
 }
 
 // ============================================================

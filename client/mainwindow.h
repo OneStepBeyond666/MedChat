@@ -10,8 +10,9 @@
 #include <QSet>
 
 class ChatClient;
-class ContactListWidget;
+class LeftSidebar;
 class ChatWidget;
+class ProfileDialog;
 #include "chatclient.h"
 
 class MainWindow : public QMainWindow
@@ -19,13 +20,15 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 public:
     explicit MainWindow(ChatClient *client, const QString &username, const QString &role,
-                        const QString &nickname, QWidget *parent = nullptr);
+                        const QString &nickname, const QByteArray &avatarData,
+                        QWidget *parent = nullptr);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
 
 private slots:
     void onContactSelected(const QString &username);
+    void onSessionSelected(const QString &username);
     void onContactListUpdated(const QMap<QString, ContactInfo> &contacts);
     void onTextMessageReceived(const QString &from, const QString &to,
                                const QString &text, qint64 timestamp);
@@ -50,12 +53,16 @@ private slots:
     void onOfflineSyncDone();
     void onFriendRequestReceived(const QString &from, const QString &text);
     void onDisconnected();
+    void onAvatarClicked();
+    void onContactProfileChanged(const QString &username, const QString &nickname,
+                                  const QByteArray &avatarData);
 
 private:
     void setupUI();
     void applyStyles();
     void showMessage(const QString &title, const QString &text);
     void loadMessagesFromDB(const QString &contactUid, const QString &partnerNick);
+    void loadSessionsList();
     void persistTextMessage(const QString &contactUid, const QString &content,
                             qint64 timestamp, bool isMine);
     void persistFileMessage(const QString &contactUid, const QString &fileName,
@@ -67,7 +74,8 @@ private:
     QString m_username;
     QString m_role;
     QString m_nickname;
-    ContactListWidget *m_contactList;
+    QByteArray m_avatarData;
+    LeftSidebar *m_sidebar;
     QStackedWidget *m_chatStack;
     ChatWidget *m_chatWidget;
 

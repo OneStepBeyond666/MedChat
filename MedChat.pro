@@ -20,9 +20,13 @@ SOURCES += \
     client/localdb.cpp \
     client/loginwindow.cpp \
     client/mainwindow.cpp \
+    ui/avatarcropper.cpp \
     ui/contactlistwidget.cpp \
     ui/chatwidget.cpp \
-    ui/messagebubble.cpp
+    ui/leftsidebar.cpp \
+    ui/messagebubble.cpp \
+    ui/profiledialog.cpp \
+    ui/sessionlistwidget.cpp
 
 HEADERS += \
     common/protocol.h \
@@ -35,9 +39,13 @@ HEADERS += \
     client/localdb.h \
     client/loginwindow.h \
     client/mainwindow.h \
+    ui/avatarcropper.h \
     ui/contactlistwidget.h \
     ui/chatwidget.h \
-    ui/messagebubble.h
+    ui/leftsidebar.h \
+    ui/messagebubble.h \
+    ui/profiledialog.h \
+    ui/sessionlistwidget.h
 
 RESOURCES += \
     resources/style.qrc

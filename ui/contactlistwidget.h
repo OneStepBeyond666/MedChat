@@ -3,7 +3,6 @@
 
 #include <QWidget>
 #include <QListWidget>
-#include <QLineEdit>
 #include <QMap>
 #include "client/chatclient.h"
 
@@ -16,21 +15,21 @@ public:
     void updateContacts(const QMap<QString, ContactInfo> &contacts);
     QString selectedContact() const;
     void clearSelection();
+    void filter(const QString &text);
 
 signals:
     void contactSelected(const QString &username);
 
 private slots:
-    void onSearchTextChanged(const QString &text);
     void onItemClicked(QListWidgetItem *item);
 
 private:
     void setupUI();
     void applyStyles();
 
-    QLineEdit *m_searchEdit;
     QListWidget *m_listWidget;
     QMap<QString, ContactInfo> m_contacts;
+    QString m_filterText;
 };
 
 #endif // CONTACTLISTWIDGET_H

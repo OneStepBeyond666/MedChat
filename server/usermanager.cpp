@@ -108,13 +108,14 @@ QList<UserInfo> UserManager::allUsers() const
     QList<UserInfo> list;
     QSqlDatabase db = m_db->database();
     QSqlQuery q(db);
-    q.exec("SELECT uid, username, nickname, role FROM users ORDER BY uid");
+    q.exec("SELECT uid, username, nickname, role, avatar_blob FROM users ORDER BY uid");
     while (q.next()) {
         UserInfo info;
-        info.uid      = q.value(0).toInt();
-        info.username = q.value(1).toString();
-        info.nickname = q.value(2).toString();
-        info.role     = q.value(3).toString();
+        info.uid        = q.value(0).toInt();
+        info.username   = q.value(1).toString();
+        info.nickname   = q.value(2).toString();
+        info.role       = q.value(3).toString();
+        info.avatarBlob = q.value(4).toByteArray();
         list.append(info);
     }
     return list;
@@ -136,13 +137,14 @@ UserInfo UserManager::getUserInfo(int uid) const
     UserInfo info;
     QSqlDatabase db = m_db->database();
     QSqlQuery q(db);
-    q.prepare("SELECT uid, username, nickname, role FROM users WHERE uid = :uid");
+    q.prepare("SELECT uid, username, nickname, role, avatar_blob FROM users WHERE uid = :uid");
     q.bindValue(":uid", uid);
     if (q.exec() && q.next()) {
-        info.uid      = q.value(0).toInt();
-        info.username = q.value(1).toString();
-        info.nickname = q.value(2).toString();
-        info.role     = q.value(3).toString();
+        info.uid        = q.value(0).toInt();
+        info.username   = q.value(1).toString();
+        info.nickname   = q.value(2).toString();
+        info.role       = q.value(3).toString();
+        info.avatarBlob = q.value(4).toByteArray();
     }
     return info;
 }
@@ -152,13 +154,14 @@ UserInfo UserManager::getUserInfoByName(const QString &username) const
     UserInfo info;
     QSqlDatabase db = m_db->database();
     QSqlQuery q(db);
-    q.prepare("SELECT uid, username, nickname, role FROM users WHERE username = :u");
+    q.prepare("SELECT uid, username, nickname, role, avatar_blob FROM users WHERE username = :u");
     q.bindValue(":u", username);
     if (q.exec() && q.next()) {
-        info.uid      = q.value(0).toInt();
-        info.username = q.value(1).toString();
-        info.nickname = q.value(2).toString();
-        info.role     = q.value(3).toString();
+        info.uid        = q.value(0).toInt();
+        info.username   = q.value(1).toString();
+        info.nickname   = q.value(2).toString();
+        info.role       = q.value(3).toString();
+        info.avatarBlob = q.value(4).toByteArray();
     }
     return info;
 }

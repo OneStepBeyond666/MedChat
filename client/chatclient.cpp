@@ -200,6 +200,7 @@ void ChatClient::processMessage(const QJsonObject &msg)
     else if (type == MsgType::OfflineSync)  handleOfflineSync(msg);
     else if (type == MsgType::ErrorStranger) handleStrangerError(msg);
     else if (type == MsgType::FriendRequest) handleFriendRequest(msg);
+    else if (type == MsgType::ProfileUpdated) handleProfileUpdated(msg);
     else
         qWarning() << "[Client] Unknown message type:" << type;
 }
@@ -209,13 +210,20 @@ void ChatClient::handleAuthResult(const QJsonObject &msg)
     bool success = msg["success"].toBool();
     QString message = msg["message"].toString();
     QString role = msg["role"].toString();
+    QByteArray avatarData;
     if (success) {
         m_role = role;
         m_myNickname = msg["nickname"].toString();
         if (m_myNickname.isEmpty())
             m_myNickname = m_username;
+        // 解析头像
+        QString avatarB64 = msg["avatar_base64"].toString();
+        if (!avatarB64.isEmpty()) {
+            avatarData = QByteArray::fromBase64(avatarB64.toLatin1());
+            m_myAvatarData = avatarData;
+        }
     }
-    emit authResult(success, message, role);
+    emit authResult(success, message, role, avatarData);
 }
 
 void ChatClient::handleContactList(const QJsonObject &msg)
@@ -230,6 +238,10 @@ void ChatClient::handleContactList(const QJsonObject &msg)
         if (ci.nickname.isEmpty()) ci.nickname = ci.username;
         ci.role = u["role"].toString();
         ci.online = u["online"].toBool();
+        // 解析头像
+        QString avatarB64 = u["avatar_base64"].toString();
+        if (!avatarB64.isEmpty())
+            ci.avatarData = QByteArray::fromBase64(avatarB64.toLatin1());
         m_contacts[ci.username] = ci;
     }
     emit contactListUpdated(m_contacts);
@@ -247,6 +259,10 @@ void ChatClient::handleOnlineStatus(const QJsonObject &msg)
             QString nick = u["nickname"].toString();
             if (!nick.isEmpty())
                 m_contacts[username].nickname = nick;
+            // 更新头像
+            QString avatarB64 = u["avatar_base64"].toString();
+            if (!avatarB64.isEmpty())
+                m_contacts[username].avatarData = QByteArray::fromBase64(avatarB64.toLatin1());
         } else {
             ContactInfo ci;
             ci.username = username;
@@ -254,6 +270,9 @@ void ChatClient::handleOnlineStatus(const QJsonObject &msg)
             if (ci.nickname.isEmpty()) ci.nickname = ci.username;
             ci.role = u["role"].toString();
             ci.online = true;
+            QString avatarB64 = u["avatar_base64"].toString();
+            if (!avatarB64.isEmpty())
+                ci.avatarData = QByteArray::fromBase64(avatarB64.toLatin1());
             m_contacts[username] = ci;
         }
     }
@@ -479,6 +498,45 @@ void ChatClient::handleFriendRequest(const QJsonObject &msg)
 
     qDebug() << "[Client] 收到好友请求:" << from;
     emit friendRequestReceived(from, text);
+}
+
+void ChatClient::sendProfileUpdate(const QString &nickname, const QByteArray &avatarData)
+{
+    QJsonObject obj = Protocol::makeMsg(MsgType::UpdateProfile);
+    obj["nickname"] = nickname;
+    if (!avatarData.isEmpty())
+        obj["avatar_base64"] = QString::fromLatin1(avatarData.toBase64());
+    else
+        obj["avatar_base64"] = QString();
+    sendJson(obj);
+}
+
+void ChatClient::handleProfileUpdated(const QJsonObject &msg)
+{
+    QString username = msg["username"].toString();
+    QString nickname = msg["nickname"].toString();
+    QString avatarB64 = msg["avatar_base64"].toString();
+    QByteArray avatarData;
+    if (!avatarB64.isEmpty())
+        avatarData = QByteArray::fromBase64(avatarB64.toLatin1());
+
+    // 更新本地联系人缓存
+    if (m_contacts.contains(username)) {
+        if (!nickname.isEmpty())
+            m_contacts[username].nickname = nickname;
+        if (!avatarData.isEmpty())
+            m_contacts[username].avatarData = avatarData;
+    }
+
+    // 如果是自己的资料变更，更新自身信息
+    if (username == m_username) {
+        if (!nickname.isEmpty())
+            m_myNickname = nickname;
+        if (!avatarData.isEmpty())
+            m_myAvatarData = avatarData;
+    }
+
+    emit contactProfileChanged(username, nickname, avatarData);
 }
 
 bool ChatClient::isDuplicateOfflineMessage(const QString &from, const QString &content, qint64 timestamp)

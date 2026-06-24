@@ -17,7 +17,7 @@ public:
     explicit LoginWindow(ChatClient *client, QWidget *parent = nullptr);
 
 signals:
-    void loginSuccess(const QString &username, const QString &role, const QString &nickname);
+    void loginSuccess(const QString &username, const QString &role, const QString &nickname, const QByteArray &avatarData);
 
 private slots:
     // 登录页
@@ -27,7 +27,7 @@ private slots:
     // 网络回调
     void onConnected();
     void onConnectionFailed(const QString &error);
-    void onAuthResult(bool success, const QString &message, const QString &role);
+    void onAuthResult(bool success, const QString &message, const QString &role, const QByteArray &avatarData);
     // 页面切换
     void showLoginPage();
     void showRegisterPage();

@@ -37,6 +37,7 @@ private:
     void handleFileEnd(ClientHandler *handler, const QJsonObject &msg);
     void handleFileReject(ClientHandler *handler, const QJsonObject &msg);
     void handleOfflineSyncAck(ClientHandler *handler, const QJsonObject &msg);
+    void handleUpdateProfile(ClientHandler *handler, const QJsonObject &msg);
 
     void broadcastOnlineStatus();
     void sendContactList(ClientHandler *handler);

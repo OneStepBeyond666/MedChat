@@ -13,6 +13,7 @@ struct ContactInfo {
     QString nickname;
     QString role;
     bool online = false;
+    QByteArray avatarData;  // 头像原始字节（PNG/JPEG），从 base64 解码
 };
 
 struct FileTransferInfo {
@@ -47,9 +48,13 @@ public:
     void acceptFile(const QString &fileId);
     void rejectFile(const QString &fileId, const QString &reason = "用户拒绝");
 
+    /// 发送资料更新请求（昵称和/或头像）
+    void sendProfileUpdate(const QString &nickname, const QByteArray &avatarData);
+
     QString myUsername() const { return m_username; }
     QString myRole() const { return m_role; }
     QString myNickname() const { return m_myNickname; }
+    QByteArray myAvatarData() const { return m_myAvatarData; }
     QMap<QString, ContactInfo> contacts() const { return m_contacts; }
     bool isTransferActive(const QString &fileId) const;
 
@@ -58,8 +63,9 @@ signals:
     void connectionFailed(const QString &error);
     void disconnected();
 
-    void authResult(bool success, const QString &message, const QString &role);
+    void authResult(bool success, const QString &message, const QString &role, const QByteArray &avatarData);
     void contactListUpdated(const QMap<QString, ContactInfo> &contacts);
+    void contactProfileChanged(const QString &username, const QString &nickname, const QByteArray &avatarData);
     void textMessageReceived(const QString &from, const QString &to, const QString &text, qint64 timestamp);
     void messageAck(const QString &to, qint64 timestamp);
 
@@ -100,6 +106,7 @@ private:
     void handleOfflineSync(const QJsonObject &msg);
     void handleStrangerError(const QJsonObject &msg);
     void handleFriendRequest(const QJsonObject &msg);
+    void handleProfileUpdated(const QJsonObject &msg);
 
     /// 离线消息去重：检查本地 DB 是否已有同条消息
     bool isDuplicateOfflineMessage(const QString &from, const QString &content, qint64 timestamp);
@@ -112,6 +119,7 @@ private:
     QString m_username;
     QString m_role;
     QString m_myNickname;
+    QByteArray m_myAvatarData;
     QMap<QString, ContactInfo> m_contacts;
     QMap<QString, FileTransferInfo> m_fileTransfers;
 

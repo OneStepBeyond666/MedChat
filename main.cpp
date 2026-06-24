@@ -110,10 +110,10 @@ int runClient(int argc, char *argv[])
     LoginWindow *loginWin = new LoginWindow(client);
 
     QObject::connect(loginWin, &LoginWindow::loginSuccess,
-        [loginWin, client](const QString &username, const QString &role, const QString &nickname) {
+        [loginWin, client](const QString &username, const QString &role, const QString &nickname, const QByteArray &avatarData) {
             loginWin->hide();
 
-            MainWindow *mainWin = new MainWindow(client, username, role, nickname);
+            MainWindow *mainWin = new MainWindow(client, username, role, nickname, avatarData);
             mainWin->show();
 
             QObject::connect(mainWin, &MainWindow::destroyed, &QApplication::quit);

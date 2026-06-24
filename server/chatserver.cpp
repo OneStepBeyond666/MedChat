@@ -84,6 +84,8 @@ void ChatServer::onMessageReceived(ClientHandler *handler, const QJsonObject &ms
         handleFileReject(handler, msg);
     } else if (type == MsgType::OfflineSyncAck) {
         handleOfflineSyncAck(handler, msg);
+    } else if (type == MsgType::UpdateProfile) {
+        handleUpdateProfile(handler, msg);
     } else {
         qWarning() << "[未知消息] 类型:" << type;
     }
@@ -176,6 +178,8 @@ void ChatServer::handleLogin(ClientHandler *handler, const QJsonObject &msg)
         UserInfo info = m_userManager->getUserInfoByName(username);
         QJsonObject authResp = Protocol::makeAuthResult(true, "登录成功", role);
         authResp["nickname"] = info.nickname;
+        if (!info.avatarBlob.isEmpty())
+            authResp["avatar_base64"] = QString::fromLatin1(info.avatarBlob.toBase64());
         handler->sendMessage(authResp);
         qDebug() << QString("[上线] %1 (昵称: %2, %3) 登录成功")
                         .arg(username, info.nickname, role == "doctor" ? "医生" : "患者");
@@ -397,6 +401,8 @@ void ChatServer::broadcastOnlineStatus()
                 u["nickname"] = info.nickname;
                 u["role"] = other->role();
                 u["online"] = true;
+                if (!info.avatarBlob.isEmpty())
+                    u["avatar_base64"] = QString::fromLatin1(info.avatarBlob.toBase64());
                 users.append(u);
             }
         }
@@ -418,6 +424,8 @@ void ChatServer::sendContactList(ClientHandler *handler)
             u["nickname"] = info.nickname;
             u["role"] = h->role();
             u["online"] = true;
+            if (!info.avatarBlob.isEmpty())
+                u["avatar_base64"] = QString::fromLatin1(info.avatarBlob.toBase64());
             users.append(u);
         }
     }
@@ -450,5 +458,57 @@ void ChatServer::handleOfflineSyncAck(ClientHandler *handler, const QJsonObject 
         qDebug() << QString("[离线ACK] %1 离线消息已确认并清除").arg(username);
     } else {
         qWarning() << "[离线ACK] 清除离线消息失败: uid=" << uid;
+    }
+}
+
+void ChatServer::handleUpdateProfile(ClientHandler *handler, const QJsonObject &msg)
+{
+    QString username = handler->username();
+    if (username.isEmpty()) {
+        handler->sendMessage(Protocol::makeError("未登录"));
+        return;
+    }
+
+    QString nickname = msg["nickname"].toString();
+    QString avatarB64 = msg["avatar_base64"].toString();
+
+    // 更新昵称
+    if (!nickname.isEmpty()) {
+        if (!m_userManager->updateNickname(username, nickname)) {
+            handler->sendMessage(Protocol::makeError("昵称更新失败"));
+            return;
+        }
+        qDebug() << QString("[资料更新] %1 昵称更新为: %2").arg(username, nickname);
+    }
+
+    // 更新头像
+    QByteArray avatarData;
+    if (!avatarB64.isEmpty()) {
+        QByteArray rawAvatar = QByteArray::fromBase64(avatarB64.toLatin1());
+        if (!m_userManager->updateAvatar(username, rawAvatar)) {
+            handler->sendMessage(Protocol::makeError("头像更新失败"));
+            return;
+        }
+        // 获取处理后的头像
+        int uid = m_userManager->getUidByUsername(username);
+        if (uid > 0)
+            avatarData = m_userManager->getAvatar(uid);
+        qDebug() << QString("[资料更新] %1 头像已更新").arg(username);
+    }
+
+    // 构建广播消息，通知所有在线联系人
+    UserInfo updatedInfo = m_userManager->getUserInfoByName(username);
+    QJsonObject broadcast = Protocol::makeMsg(MsgType::ProfileUpdated);
+    broadcast["username"] = username;
+    broadcast["nickname"] = updatedInfo.nickname;
+    if (!updatedInfo.avatarBlob.isEmpty())
+        broadcast["avatar_base64"] = QString::fromLatin1(updatedInfo.avatarBlob.toBase64());
+    else
+        broadcast["avatar_base64"] = QString();
+
+    // 广播给所有在线客户端（包括自己，以便自己的UI也更新）
+    for (ClientHandler *h : m_clients) {
+        if (!h->username().isEmpty())
+            h->sendMessage(broadcast);
     }
 }
