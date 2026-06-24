@@ -507,6 +507,10 @@ void ChatServer::handleUpdateProfile(ClientHandler *handler, const QJsonObject &
 
     QString nickname = msg["nickname"].toString();
     QString avatarB64 = msg["avatar_base64"].toString();
+    QString signature = msg["signature"].toString();
+    int gender = msg["gender"].toInt(-1);
+    QString birthday = msg["birthday"].toString();
+    QString region = msg["region"].toString();
 
     // 更新昵称
     if (!nickname.isEmpty()) {
@@ -532,11 +536,35 @@ void ChatServer::handleUpdateProfile(ClientHandler *handler, const QJsonObject &
         qDebug() << QString("[资料更新] %1 头像已更新").arg(username);
     }
 
+    // 更新个性签名
+    if (msg.contains("signature")) {
+        m_userManager->updateSignature(username, signature);
+    }
+
+    // 更新性别
+    if (gender >= 0) {
+        m_userManager->updateGender(username, gender);
+    }
+
+    // 更新生日
+    if (msg.contains("birthday")) {
+        m_userManager->updateBirthday(username, birthday);
+    }
+
+    // 更新地区
+    if (msg.contains("region")) {
+        m_userManager->updateRegion(username, region);
+    }
+
     // 构建广播消息，通知所有在线联系人
     UserInfo updatedInfo = m_userManager->getUserInfoByName(username);
     QJsonObject broadcast = Protocol::makeMsg(MsgType::ProfileUpdated);
     broadcast["username"] = username;
     broadcast["nickname"] = updatedInfo.nickname;
+    broadcast["signature"] = updatedInfo.signature;
+    broadcast["gender"] = updatedInfo.gender;
+    broadcast["birthday"] = updatedInfo.birthday;
+    broadcast["region"] = updatedInfo.region;
     if (!updatedInfo.avatarBlob.isEmpty())
         broadcast["avatar_base64"] = QString::fromLatin1(updatedInfo.avatarBlob.toBase64());
     else

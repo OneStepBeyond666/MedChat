@@ -140,7 +140,8 @@ UserInfo UserManager::getUserInfo(int uid) const
     UserInfo info;
     QSqlDatabase db = m_db->database();
     QSqlQuery q(db);
-    q.prepare("SELECT uid, username, nickname, role, avatar_blob FROM users WHERE uid = :uid");
+    q.prepare("SELECT uid, username, nickname, role, avatar_blob, signature, gender, birthday, region "
+              "FROM users WHERE uid = :uid");
     q.bindValue(":uid", uid);
     if (q.exec() && q.next()) {
         info.uid        = q.value(0).toInt();
@@ -148,6 +149,10 @@ UserInfo UserManager::getUserInfo(int uid) const
         info.nickname   = q.value(2).toString();
         info.role       = q.value(3).toString();
         info.avatarBlob = q.value(4).toByteArray();
+        info.signature  = q.value(5).toString();
+        info.gender     = q.value(6).toInt();
+        info.birthday   = q.value(7).toString();
+        info.region     = q.value(8).toString();
     }
     return info;
 }
@@ -157,7 +162,8 @@ UserInfo UserManager::getUserInfoByName(const QString &username) const
     UserInfo info;
     QSqlDatabase db = m_db->database();
     QSqlQuery q(db);
-    q.prepare("SELECT uid, username, nickname, role, avatar_blob FROM users WHERE username = :u");
+    q.prepare("SELECT uid, username, nickname, role, avatar_blob, signature, gender, birthday, region "
+              "FROM users WHERE username = :u");
     q.bindValue(":u", username);
     if (q.exec() && q.next()) {
         info.uid        = q.value(0).toInt();
@@ -165,6 +171,10 @@ UserInfo UserManager::getUserInfoByName(const QString &username) const
         info.nickname   = q.value(2).toString();
         info.role       = q.value(3).toString();
         info.avatarBlob = q.value(4).toByteArray();
+        info.signature  = q.value(5).toString();
+        info.gender     = q.value(6).toInt();
+        info.birthday   = q.value(7).toString();
+        info.region     = q.value(8).toString();
     }
     return info;
 }
@@ -372,4 +382,60 @@ bool UserManager::changePassword(int uid, const QString &oldPassword, const QStr
         return false;
     }
     return up.numRowsAffected() > 0;
+}
+
+// ============================================================
+// 更新个性签名
+// ============================================================
+
+bool UserManager::updateSignature(const QString &username, const QString &signature)
+{
+    QSqlDatabase db = m_db->database();
+    QSqlQuery q(db);
+    q.prepare("UPDATE users SET signature = :sig WHERE username = :u");
+    q.bindValue(":sig", signature);
+    q.bindValue(":u", username);
+    return q.exec() && q.numRowsAffected() > 0;
+}
+
+// ============================================================
+// 更新性别
+// ============================================================
+
+bool UserManager::updateGender(const QString &username, int gender)
+{
+    QSqlDatabase db = m_db->database();
+    QSqlQuery q(db);
+    q.prepare("UPDATE users SET gender = :g WHERE username = :u");
+    q.bindValue(":g", gender);
+    q.bindValue(":u", username);
+    return q.exec() && q.numRowsAffected() > 0;
+}
+
+// ============================================================
+// 更新生日
+// ============================================================
+
+bool UserManager::updateBirthday(const QString &username, const QString &birthday)
+{
+    QSqlDatabase db = m_db->database();
+    QSqlQuery q(db);
+    q.prepare("UPDATE users SET birthday = :b WHERE username = :u");
+    q.bindValue(":b", birthday);
+    q.bindValue(":u", username);
+    return q.exec() && q.numRowsAffected() > 0;
+}
+
+// ============================================================
+// 更新地区
+// ============================================================
+
+bool UserManager::updateRegion(const QString &username, const QString &region)
+{
+    QSqlDatabase db = m_db->database();
+    QSqlQuery q(db);
+    q.prepare("UPDATE users SET region = :r WHERE username = :u");
+    q.bindValue(":r", region);
+    q.bindValue(":u", username);
+    return q.exec() && q.numRowsAffected() > 0;
 }

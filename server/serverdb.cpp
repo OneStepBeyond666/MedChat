@@ -80,7 +80,11 @@ void ServerDB::createTables()
         "  role             TEXT    NOT NULL CHECK(role IN ('doctor','patient')),"
         "  avatar_blob      BLOB,"
         "  sec_question     TEXT    DEFAULT '',"
-        "  sec_answer_hash  TEXT    DEFAULT ''"
+        "  sec_answer_hash  TEXT    DEFAULT '',"
+        "  signature        TEXT    DEFAULT '这个人很懒，什么都没写',"
+        "  gender           INTEGER DEFAULT 0,"  // 0=未知, 1=男, 2=女
+        "  birthday         TEXT    DEFAULT '',"
+        "  region           TEXT    DEFAULT ''"
         ")"
     );
     if (!ok) qCritical() << "[ServerDB] 创建 users 表失败:" << q.lastError().text();
@@ -149,6 +153,14 @@ void ServerDB::createTables()
         q.exec("ALTER TABLE users ADD COLUMN sec_question TEXT DEFAULT ''");
         q.exec("ALTER TABLE users ADD COLUMN sec_answer_hash TEXT DEFAULT ''");
         qDebug() << "[ServerDB] users 表已添加 sec_question 和 sec_answer_hash 列";
+    }
+    // 兼容旧数据库：若 users 表已存在但无 signature 列，自动 ALTER ADD
+    if (!userRec.contains("signature")) {
+        q.exec("ALTER TABLE users ADD COLUMN signature TEXT DEFAULT '这个人很懒，什么都没写'");
+        q.exec("ALTER TABLE users ADD COLUMN gender INTEGER DEFAULT 0");
+        q.exec("ALTER TABLE users ADD COLUMN birthday TEXT DEFAULT ''");
+        q.exec("ALTER TABLE users ADD COLUMN region TEXT DEFAULT ''");
+        qDebug() << "[ServerDB] users 表已添加 signature, gender, birthday, region 列";
     }
 
     qDebug() << "[ServerDB] 数据表初始化完成 (users, friends, offline_messages)";

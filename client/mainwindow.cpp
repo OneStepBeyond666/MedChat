@@ -263,16 +263,19 @@ void MainWindow::onSessionSelected(const QString &username)
 void MainWindow::onAvatarClicked()
 {
     ProfileDialog *dlg = new ProfileDialog(
-        ProfileDialog::SelfProfile, m_username, m_nickname, m_role, m_avatarData, this);
+        ProfileDialog::SelfProfile, m_username, m_nickname, m_role, m_avatarData,
+        m_client->mySignature(), m_client->myGender(), m_client->myBirthday(), m_client->myRegion(), this);
 
     connect(dlg, &ProfileDialog::profileSaved,
-        this, [this, dlg](const QString &nickname, const QByteArray &avatarData) {
+        this, [this, dlg](const QString &nickname, const QByteArray &avatarData,
+                          const QString &signature, int gender,
+                          const QString &birthday, const QString &region) {
             // 更新本地状态
             m_nickname = nickname;
             m_avatarData = avatarData;
 
             // 发送到服务器
-            m_client->sendProfileUpdate(nickname, avatarData);
+            m_client->sendProfileUpdate(nickname, avatarData, signature, gender, birthday, region);
 
             // 更新侧栏显示
             m_sidebar->setSelfProfile(nickname, avatarData);
@@ -307,8 +310,14 @@ void MainWindow::onChangePasswordRequested()
 // ============================================================
 
 void MainWindow::onContactProfileChanged(const QString &username, const QString &nickname,
-                                          const QByteArray &avatarData)
+                                          const QByteArray &avatarData, const QString &signature,
+                                          int gender, const QString &birthday, const QString &region)
 {
+    Q_UNUSED(signature)
+    Q_UNUSED(gender)
+    Q_UNUSED(birthday)
+    Q_UNUSED(region)
+
     // 如果是自己的资料变更
     if (username == m_username) {
         m_nickname = nickname;

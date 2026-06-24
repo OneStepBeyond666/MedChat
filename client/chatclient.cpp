@@ -576,7 +576,9 @@ void ChatClient::handleFriendRequestConflict(const QJsonObject &msg)
     emit friendRequestConflict(target, direction, message, requestId);
 }
 
-void ChatClient::sendProfileUpdate(const QString &nickname, const QByteArray &avatarData)
+void ChatClient::sendProfileUpdate(const QString &nickname, const QByteArray &avatarData,
+                                      const QString &signature, int gender,
+                                      const QString &birthday, const QString &region)
 {
     QJsonObject obj = Protocol::makeMsg(MsgType::UpdateProfile);
     obj["nickname"] = nickname;
@@ -584,6 +586,10 @@ void ChatClient::sendProfileUpdate(const QString &nickname, const QByteArray &av
         obj["avatar_base64"] = QString::fromLatin1(avatarData.toBase64());
     else
         obj["avatar_base64"] = QString();
+    obj["signature"] = signature;
+    obj["gender"] = gender;
+    obj["birthday"] = birthday;
+    obj["region"] = region;
     sendJson(obj);
 }
 
@@ -613,6 +619,10 @@ void ChatClient::handleProfileUpdated(const QJsonObject &msg)
     QString username = msg["username"].toString();
     QString nickname = msg["nickname"].toString();
     QString avatarB64 = msg["avatar_base64"].toString();
+    QString signature = msg["signature"].toString();
+    int gender = msg["gender"].toInt(0);
+    QString birthday = msg["birthday"].toString();
+    QString region = msg["region"].toString();
     QByteArray avatarData;
     if (!avatarB64.isEmpty())
         avatarData = QByteArray::fromBase64(avatarB64.toLatin1());
@@ -623,6 +633,10 @@ void ChatClient::handleProfileUpdated(const QJsonObject &msg)
             m_contacts[username].nickname = nickname;
         if (!avatarData.isEmpty())
             m_contacts[username].avatarData = avatarData;
+        m_contacts[username].signature = signature;
+        m_contacts[username].gender = gender;
+        m_contacts[username].birthday = birthday;
+        m_contacts[username].region = region;
     }
 
     // 如果是自己的资料变更，更新自身信息
@@ -631,9 +645,13 @@ void ChatClient::handleProfileUpdated(const QJsonObject &msg)
             m_myNickname = nickname;
         if (!avatarData.isEmpty())
             m_myAvatarData = avatarData;
+        m_mySignature = signature;
+        m_myGender = gender;
+        m_myBirthday = birthday;
+        m_myRegion = region;
     }
 
-    emit contactProfileChanged(username, nickname, avatarData);
+    emit contactProfileChanged(username, nickname, avatarData, signature, gender, birthday, region);
 }
 
 bool ChatClient::isDuplicateOfflineMessage(const QString &from, const QString &content, qint64 timestamp)

@@ -14,6 +14,10 @@ struct ContactInfo {
     QString role;
     bool online = false;
     QByteArray avatarData;  // 头像原始字节（PNG/JPEG），从 base64 解码
+    QString signature;      // 个性签名
+    int gender = 0;         // 0=未知, 1=男, 2=女
+    QString birthday;      // YYYY-MM-DD
+    QString region;        // 地区
 };
 
 struct FileTransferInfo {
@@ -50,7 +54,11 @@ public:
     void rejectFile(const QString &fileId, const QString &reason = "用户拒绝");
 
     /// 发送资料更新请求（昵称和/或头像）
-    void sendProfileUpdate(const QString &nickname, const QByteArray &avatarData);
+    void sendProfileUpdate(const QString &nickname, const QByteArray &avatarData,
+                            const QString &signature = QString(),
+                            int gender = -1,
+                            const QString &birthday = QString(),
+                            const QString &region = QString());
 
     /// 发送好友请求
     void sendFriendRequest(const QString &to);
@@ -71,6 +79,10 @@ public:
     QString myRole() const { return m_role; }
     QString myNickname() const { return m_myNickname; }
     QByteArray myAvatarData() const { return m_myAvatarData; }
+    QString mySignature() const { return m_mySignature; }
+    int myGender() const { return m_myGender; }
+    QString myBirthday() const { return m_myBirthday; }
+    QString myRegion() const { return m_myRegion; }
     QMap<QString, ContactInfo> contacts() const { return m_contacts; }
     QMap<QString, ContactInfo> onlineUsers() const { return m_onlineUsers; }
     bool isTransferActive(const QString &fileId) const;
@@ -82,7 +94,9 @@ signals:
 
     void authResult(bool success, const QString &message, const QString &role, const QByteArray &avatarData);
     void contactListUpdated(const QMap<QString, ContactInfo> &contacts);
-    void contactProfileChanged(const QString &username, const QString &nickname, const QByteArray &avatarData);
+    void contactProfileChanged(const QString &username, const QString &nickname, const QByteArray &avatarData,
+                                const QString &signature = QString(), int gender = 0,
+                                const QString &birthday = QString(), const QString &region = QString());
     void textMessageReceived(const QString &from, const QString &to, const QString &text, qint64 timestamp);
     void messageAck(const QString &to, qint64 timestamp);
 
@@ -155,6 +169,10 @@ private:
     QString m_role;
     QString m_myNickname;
     QByteArray m_myAvatarData;
+    QString m_mySignature;
+    int m_myGender = 0;
+    QString m_myBirthday;
+    QString m_myRegion;
     QMap<QString, ContactInfo> m_contacts;      // 仅好友
     QMap<QString, ContactInfo> m_onlineUsers;   // 所有在线用户（含好友和陌生人）
     QMap<QString, FileTransferInfo> m_fileTransfers;

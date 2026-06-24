@@ -70,7 +70,9 @@ private slots:
     void onAvatarClicked();
     void onChangePasswordRequested();
     void onContactProfileChanged(const QString &username, const QString &nickname,
-                                  const QByteArray &avatarData);
+                                  const QByteArray &avatarData, const QString &signature = QString(),
+                                  int gender = 0, const QString &birthday = QString(),
+                                  const QString &region = QString());
     void onAddFriendRequested();
 
 private:
