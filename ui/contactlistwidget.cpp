@@ -151,7 +151,7 @@ void ContactListWidget::rebuildList()
         iconLabel->setAlignment(Qt::AlignCenter);
         iconLabel->setPixmap(AvatarCropper::defaultAvatar(
             QString::fromUtf8("\xe6\x96\xb0\xe7\x9a\x84\xe6\x9c\x8b\xe5\x8f\x8b"), 32));
-        frLayout->addWidget(iconLabel);
+        frLayout->addWidget(iconLabel, 0, Qt::AlignVCenter);  // 头像垂直居中
 
         // 名称
         QLabel *frNameLabel = new QLabel(QString::fromUtf8(
@@ -192,7 +192,7 @@ void ContactListWidget::rebuildList()
         npIcon->setAlignment(Qt::AlignCenter);
         npIcon->setPixmap(AvatarCropper::defaultAvatar(
             QString::fromUtf8("\xe9\x99\x84\xe8\xbf\x91"), 32));
-        npLayout->addWidget(npIcon);
+        npLayout->addWidget(npIcon, 0, Qt::AlignVCenter);  // 头像垂直居中
 
         // 名称
         QLabel *npNameLabel = new QLabel(QString::fromUtf8(
@@ -320,7 +320,7 @@ void ContactListWidget::rebuildList()
                 avatarLabel->setPixmap(AvatarCropper::roundAvatar(ci.avatarData, 40));
             else
                 avatarLabel->setPixmap(AvatarCropper::defaultAvatar(display, 40));
-            hLayout->addWidget(avatarLabel);
+            hLayout->addWidget(avatarLabel, 0, Qt::AlignVCenter);  // 头像垂直居中
 
             // 昵称
             QLabel *nameLabel = new QLabel(display);

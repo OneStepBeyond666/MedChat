@@ -58,7 +58,7 @@ QListWidgetItem *SessionListWidget::createSessionItem(const SessionInfo &s)
         QString nameForAvatar = s.nickname.isEmpty() ? s.username : s.nickname;
         avatarLabel->setPixmap(AvatarCropper::defaultAvatar(nameForAvatar, 40));
     }
-    layout->addWidget(avatarLabel);
+    layout->addWidget(avatarLabel, 0, Qt::AlignVCenter);  // 头像垂直居中
 
     // 中间区域：昵称 + 预览
     QWidget *midWidget = new QWidget;
