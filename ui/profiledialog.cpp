@@ -14,6 +14,7 @@
 #include <QStyleFactory>
 #include <QPalette>
 #include <QAbstractItemView>
+#include <QToolButton>
 
 ProfileDialog::ProfileDialog(Mode mode,
                              const QString &username,
@@ -297,17 +298,27 @@ void ProfileDialog::setupSelfUI(QVBoxLayout *mainLayout)
     m_passItem->setCursor(Qt::PointingHandCursor);
     m_passItem->setObjectName("passItem");
     m_passItem->setStyleSheet(
-        "QWidget { background-color: #FFFFFF; border-bottom: 1px solid #e8e8e8; }"
-        "QWidget:hover { background-color: #F5F5F5; }"
+        "#passItem { background-color: #FFFFFF; border-bottom: 1px solid #e8e8e8; }"
+        "#passItem:hover { background-color: #F5F5F5; }"
     );
     QHBoxLayout *passLayout = new QHBoxLayout(m_passItem);
     passLayout->setContentsMargins(16, 12, 16, 12);
     QLabel *passLabel = new QLabel("修改密码");
-    passLabel->setStyleSheet("font-size: 14px; color: #333; background: transparent;");
+    passLabel->setStyleSheet("font-size: 14px; color: #333; background: transparent; border: none;");
+    passLabel->setAutoFillBackground(false);
     passLayout->addWidget(passLabel);
     passLayout->addStretch();
-    m_passArrow = new QLabel("›");
-    m_passArrow->setStyleSheet("font-size: 18px; color: #cccccc; background: transparent;");
+    // ✅ 改用 QToolButton：原生支持 :hover，无需手动处理 Enter/Leave
+    m_passArrow = new QToolButton;
+    m_passArrow->setText("›");
+    m_passArrow->setFixedSize(20, 20);
+    m_passArrow->setAutoRaise(true);
+    m_passArrow->setCursor(Qt::PointingHandCursor);
+    m_passArrow->setStyleSheet(
+        "QToolButton { background: transparent; border: none; outline: none;"
+        "  color: #ccc; font-size: 18px; }"
+        "QToolButton:hover { color: #999; }"
+    );
     passLayout->addWidget(m_passArrow);
     m_passItem->installEventFilter(this);
     mainLayout->addWidget(m_passItem);
@@ -615,17 +626,10 @@ bool ProfileDialog::eventFilter(QObject *obj, QEvent *event)
         onAvatarClicked();
         return true;
     }
-    // 修改密码：点击 + hover箭头变色
-    if (obj == m_passItem) {
-        if (event->type() == QEvent::MouseButtonPress) {
-            onChangePasswordClicked();
-            return true;
-        }
-        if (event->type() == QEvent::Enter) {
-            m_passArrow->setStyleSheet("font-size: 18px; color: #999999;");
-        } else if (event->type() == QEvent::Leave) {
-            m_passArrow->setStyleSheet("font-size: 18px; color: #cccccc;");
-        }
+    // 修改密码：点击（hover 箭头变色由 QToolButton 的 QSS :hover 自动处理）
+    if (obj == m_passItem && event->type() == QEvent::MouseButtonPress) {
+        onChangePasswordClicked();
+        return true;
     }
     // 日历弹窗延迟创建，点击 QDateEdit 时强制设置 Palette
     if (obj == m_birthdayEdit && event->type() == QEvent::MouseButtonPress) {
