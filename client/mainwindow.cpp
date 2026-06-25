@@ -592,9 +592,10 @@ void MainWindow::onSendFileWithPath(const QString &to, const QString &filePath)
 void MainWindow::onFileSendInitiated(const QString &to, const QString &fileName,
                                       qint64 fileSize, const QString &fileId)
 {
-    Q_UNUSED(to)
-    // 用真实 fileId 创建文件卡片（统一显示"me"）
-    m_chatWidget->addFileMessage("me", fileName, fileSize, fileId, true);
+    // 仅当目标是当前对话方才在 UI 添加文件卡片
+    if (m_chatWidget && m_chatWidget->currentPartner() == to) {
+        m_chatWidget->addFileMessage("me", fileName, fileSize, fileId, true);
+    }
 
     qint64 now = QDateTime::currentMSecsSinceEpoch();
 
@@ -1045,7 +1046,16 @@ void MainWindow::onForwardMessage(int msgType, const QString &content, const QSt
                     m_chatWidget->addTextMessageWithId(fileHelper, content, now, false);
                 }
             } else {
-                onSendTextMessage(target, content);
+                // 直接调用底层发送，不走 onSendTextMessage（它会无条件加气泡）
+                m_client->sendTextMessage(target, content);
+                qint64 now = QDateTime::currentMSecsSinceEpoch();
+                qint64 msgId = persistTextMessage(target, content, now, true);
+                updateSession(target, content.left(50), now);
+                // 仅当目标是当前对话方才更新 UI
+                if (m_chatWidget && m_chatWidget->currentPartner() == target) {
+                    MessageBubble *bubble = m_chatWidget->addTextMessageWithId("me", content, now, true);
+                    if (bubble) bubble->setMsgId(msgId);
+                }
             }
             successCount++;
         } else if (msgType == 1) {
@@ -1087,10 +1097,11 @@ void MainWindow::onForwardMessage(int msgType, const QString &content, const QSt
                     m_chatWidget->addFileMessage(fileHelper, rec.originalName, rec.size, newFileId, false);
                 }
             } else {
+                // 设置 pending 状态让 onFileSendInitiated 正确处理持久化
+                m_pendingSendFileTo = target;
+                m_pendingSendFilePath = rec.savePath;
                 m_client->sendFile(target, rec.savePath);
-                qint64 now = QDateTime::currentMSecsSinceEpoch();
-                persistFileMessage(target, rec.originalName, QString(), now, true);
-                updateSession(target, rec.originalName, now);
+                // sendFile 同步触发 fileSendInitiated → onFileSendInitiated 处理存档+持久化+UI
             }
             successCount++;
         }
