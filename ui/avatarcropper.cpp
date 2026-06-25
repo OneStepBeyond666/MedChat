@@ -92,9 +92,9 @@ QPixmap AvatarCropper::roundAvatar(const QByteArray &data, int size)
     if (src.isNull())
         return defaultAvatar("?", size);
 
-    // 圆形直径比size小4px，留出透明边距，防止抗锯齿边缘被裁剪
-    int circleDiameter = size - 4;
-    int circleOffset = 2;  // 圆形左上角偏移2px，居中显示
+    // 圆形直径比size小8px，留出更多透明边距，防止抗锯齿边缘被裁剪
+    int circleDiameter = size - 8;
+    int circleOffset = 4;  // 圆形左上角偏移4px，居中显示
 
     // 先缩放为正方形
     QPixmap scaled = src.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
@@ -139,9 +139,9 @@ QPixmap AvatarCropper::defaultAvatar(const QString &name, int size)
     if (!name.isEmpty())
         colorIdx = qHash(name) % 10;
 
-    // 圆形直径比size小4px，留出透明边距
-    int circleDiameter = size - 4;
-    int circleOffset = 2;
+    // 圆形直径比size小8px，留出更多透明边距
+    int circleDiameter = size - 8;
+    int circleOffset = 4;
 
     QPixmap result(size, size);
     result.fill(Qt::transparent);
