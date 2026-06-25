@@ -78,6 +78,7 @@ private slots:
     void onMessageDeleteRequested(qint64 msgId);
     void onMessageRecallRequested(qint64 msgId, qint64 timestamp);
     void onMessageRecalled(const QString &from, const QString &to, qint64 originalTimestamp);
+    void onForwardMessage(int msgType, const QString &content, const QString &fileId);
 
 private:
     void setupUI();

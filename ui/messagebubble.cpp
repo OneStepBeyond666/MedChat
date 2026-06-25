@@ -97,6 +97,11 @@ void MessageBubble::showContextMenu(const QPoint &pos)
     QAction *enlargeAction = menu.addAction(QStringLiteral("放大阅读"));
     connect(enlargeAction, &QAction::triggered, this, &MessageBubble::onEnlargeClicked);
 
+    menu.addSeparator();
+
+    QAction *forwardAction = menu.addAction(QStringLiteral("转发"));
+    connect(forwardAction, &QAction::triggered, this, &MessageBubble::onForwardClicked);
+
     // 撤回：仅自己发送的消息 && 2分钟内
     qint64 timeDiff = QDateTime::currentMSecsSinceEpoch() - m_timestamp;
     bool canRecall = m_isMine && (timeDiff <= 120000);
@@ -168,6 +173,11 @@ void MessageBubble::onRecallClicked()
         emit recallRequested(m_msgId, m_timestamp);
 }
 
+void MessageBubble::onForwardClicked()
+{
+    emit forwardRequested(0, m_text, QString());
+}
+
 void MessageBubble::setRecalled(bool recalled, bool isMine)
 {
     m_isRecalled = recalled;
@@ -191,6 +201,8 @@ FileMessageCard::FileMessageCard(const QString &fileName, qint64 fileSize, bool 
     : QWidget(parent)
 {
     setupUI(fileName, fileSize, isMine, senderName, timeStr);
+    setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this, &QWidget::customContextMenuRequested, this, &FileMessageCard::showContextMenu);
 }
 
 void FileMessageCard::setupUI(const QString &fileName, qint64 fileSize, bool isMine,
@@ -302,6 +314,7 @@ void FileMessageCard::setProgress(qint64 received, qint64 total)
 
 void FileMessageCard::setState(State state, const QString &info)
 {
+    m_state = state;
     switch (state) {
     case Pending:
         m_statusLabel->setText("等待接收...");
@@ -338,4 +351,24 @@ QString FileMessageCard::formatSize(qint64 bytes)
     if (bytes < 1024 * 1024) return QString::number(bytes / 1024.0, 'f', 1) + " KB";
     if (bytes < 1024LL * 1024 * 1024) return QString::number(bytes / (1024.0 * 1024.0), 'f', 1) + " MB";
     return QString::number(bytes / (1024.0 * 1024.0 * 1024.0), 'f', 2) + " GB";
+}
+
+void FileMessageCard::showContextMenu(const QPoint &pos)
+{
+    // 只有已完成的文件才能转发
+    if (m_state != Completed) return;
+
+    QMenu menu(this);
+    menu.setStyleSheet(
+        "QMenu { background-color: white; border: 1px solid #e0e0e0; border-radius: 4px; padding: 4px 0; min-width: 120px; }"
+        "QMenu::item { padding: 8px 24px; font-size: 13px; color: #333; }"
+        "QMenu::item:selected { background-color: #f5f5f5; }"
+    );
+
+    QAction *forwardAction = menu.addAction(QStringLiteral("转发"));
+    connect(forwardAction, &QAction::triggered, this, [this]() {
+        emit forwardRequested(1, m_fileNameLabel->text(), fileId);
+    });
+
+    menu.exec(mapToGlobal(pos));
 }

@@ -369,6 +369,7 @@ MessageBubble *ChatWidget::addTextMessageWithId(const QString &sender, const QSt
     bubble->setTimestamp(timestamp);
     connect(bubble, &MessageBubble::deleteRequested, this, &ChatWidget::deleteRequested);
     connect(bubble, &MessageBubble::recallRequested, this, &ChatWidget::recallRequested);
+    connect(bubble, &MessageBubble::forwardRequested, this, &ChatWidget::forwardRequested);
     m_messageLayout->insertWidget(insertIndex, bubble);
 
     scrollToBottom();
@@ -397,6 +398,7 @@ void ChatWidget::addFileMessage(const QString &sender, const QString &fileName,
     connect(card, &FileMessageCard::acceptClicked, this, &ChatWidget::onFileAcceptClicked);
     connect(card, &FileMessageCard::rejectClicked, this, &ChatWidget::onFileRejectClicked);
     connect(card, &FileMessageCard::openClicked, this, &ChatWidget::onFileOpenClicked);
+    connect(card, &FileMessageCard::forwardRequested, this, &ChatWidget::forwardRequested);
 
     m_fileCards[fileId] = card;
     m_messageLayout->insertWidget(insertIndex, card);
@@ -499,6 +501,7 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
             bubble->setTimestamp(sm.timestamp);
             connect(bubble, &MessageBubble::deleteRequested, this, &ChatWidget::deleteRequested);
             connect(bubble, &MessageBubble::recallRequested, this, &ChatWidget::recallRequested);
+            connect(bubble, &MessageBubble::forwardRequested, this, &ChatWidget::forwardRequested);
             if (sm.isRecalled) {
                 bubble->setRecalled(true, sm.isMine);
             }
@@ -525,6 +528,7 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
             connect(fcard, &FileMessageCard::acceptClicked, this, &ChatWidget::onFileAcceptClicked);
             connect(fcard, &FileMessageCard::rejectClicked, this, &ChatWidget::onFileRejectClicked);
             connect(fcard, &FileMessageCard::openClicked, this, &ChatWidget::onFileOpenClicked);
+            connect(fcard, &FileMessageCard::forwardRequested, this, &ChatWidget::forwardRequested);
 
             if (rec.status == 1) {
                 fcard->setState(FileMessageCard::Completed);

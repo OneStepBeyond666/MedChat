@@ -66,6 +66,7 @@ signals:
     void fileOpenRequested(const QString &fileId);
     void deleteRequested(qint64 msgId);
     void recallRequested(qint64 msgId, qint64 timestamp);
+    void forwardRequested(int msgType, const QString &content, const QString &fileId);
 
 private slots:
     void onSendClicked();

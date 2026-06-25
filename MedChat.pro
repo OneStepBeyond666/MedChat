@@ -32,7 +32,8 @@ SOURCES += \
     ui/friendrequestnotification.cpp \
     ui/nearbypeoplewidget.cpp \
     ui/forgotpassworddialog.cpp \
-    ui/changepassworddialog.cpp
+    ui/changepassworddialog.cpp \
+    ui/forwarddialog.cpp
 
 HEADERS += \
     common/protocol.h \
@@ -57,7 +58,8 @@ HEADERS += \
     ui/friendrequestnotification.h \
     ui/nearbypeoplewidget.h \
     ui/forgotpassworddialog.h \
-    ui/changepassworddialog.h
+    ui/changepassworddialog.h \
+    ui/forwarddialog.h
 
 RESOURCES += \
     resources/style.qrc

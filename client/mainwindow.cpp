@@ -12,6 +12,7 @@
 #include "ui/nearbypeoplewidget.h"
 #include "ui/changepassworddialog.h"
 #include "ui/messagebubble.h"
+#include "ui/forwarddialog.h"
 #include <QSplitter>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -107,6 +108,7 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_chatWidget, &ChatWidget::fileRejected, this, &MainWindow::onFileRejectFromUI);
     connect(m_chatWidget, &ChatWidget::deleteRequested, this, &MainWindow::onMessageDeleteRequested);
     connect(m_chatWidget, &ChatWidget::recallRequested, this, &MainWindow::onMessageRecallRequested);
+    connect(m_chatWidget, &ChatWidget::forwardRequested, this, &MainWindow::onForwardMessage);
 
     connect(m_client, &ChatClient::messageRecalled, this, &MainWindow::onMessageRecalled);
 
@@ -1006,6 +1008,100 @@ void MainWindow::onMessageRecalled(const QString &from, const QString &to, qint6
 
     // 更新会话预览（无论是否正在查看该对话）
     updateSession(partner, QStringLiteral("[撤回了一条消息]"), QDateTime::currentMSecsSinceEpoch());
+}
+
+void MainWindow::onForwardMessage(int msgType, const QString &content, const QString &fileId)
+{
+    // 构造预览文本
+    QString preview;
+    if (msgType == 0) {
+        preview = content.left(50);
+    } else {
+        preview = QStringLiteral("文件: ") + content;
+    }
+
+    // 弹出转发对话框
+    ForwardDialog dialog(m_client->contacts(), preview, this);
+    if (dialog.exec() != QDialog::Accepted) return;
+
+    QStringList targets = dialog.selectedUsernames();
+    if (targets.isEmpty()) return;
+
+    int successCount = 0;
+    int failCount = 0;
+    QString fileHelper = QString::fromUtf8(MsgType::FileHelper);
+
+    for (const QString &target : targets) {
+        if (msgType == 0) {
+            // 文本转发
+            if (target == fileHelper) {
+                // FileHelper 本地回环
+                qint64 now = QDateTime::currentMSecsSinceEpoch();
+                persistTextMessage(fileHelper, content, now, true);
+                persistTextMessage(fileHelper, content, now, false);
+                updateSession(fileHelper, content.left(50), now);
+                if (m_chatWidget && m_chatWidget->currentPartner() == fileHelper) {
+                    m_chatWidget->addTextMessageWithId("me", content, now, true);
+                    m_chatWidget->addTextMessageWithId(fileHelper, content, now, false);
+                }
+            } else {
+                onSendTextMessage(target, content);
+            }
+            successCount++;
+        } else if (msgType == 1) {
+            // 文件转发
+            FileRecord rec = LocalDB::instance().getFileRecord(fileId);
+            if (rec.savePath.isEmpty() || !QFile::exists(rec.savePath)) {
+                failCount++;
+                continue;
+            }
+
+            if (target == fileHelper) {
+                // FileHelper 本地复制
+                qint64 now = QDateTime::currentMSecsSinceEpoch();
+                QString newFileId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+
+                // 复制到 FileHelper 本地存档目录
+                QString yearMonth = QDateTime::currentDateTime().toString("yyyy/MM");
+                QString archiveDir = LocalDB::instance().rootPath()
+                                     + "/file/" + yearMonth;
+                QDir().mkpath(archiveDir);
+                QString destPath = LocalDB::instance().generateUniqueFilePath(archiveDir, rec.originalName);
+                QFile::copy(rec.savePath, destPath);
+
+                FileRecord newRec;
+                newRec.fileId = newFileId;
+                newRec.originalName = rec.originalName;
+                newRec.saveName = QFileInfo(destPath).fileName();
+                newRec.savePath = destPath;
+                newRec.size = rec.size;
+                newRec.md5 = rec.md5;
+                newRec.yearMonth = yearMonth;
+                newRec.status = 1;
+                LocalDB::instance().insertFileRecord(newRec);
+                persistFileMessage(fileHelper, rec.originalName, newFileId, now, true);
+                persistFileMessage(fileHelper, rec.originalName, newFileId, now, false);
+                updateSession(fileHelper, rec.originalName, now);
+                if (m_chatWidget && m_chatWidget->currentPartner() == fileHelper) {
+                    m_chatWidget->addFileMessage("me", rec.originalName, rec.size, newFileId, true);
+                    m_chatWidget->addFileMessage(fileHelper, rec.originalName, rec.size, newFileId, false);
+                }
+            } else {
+                m_client->sendFile(target, rec.savePath);
+                qint64 now = QDateTime::currentMSecsSinceEpoch();
+                persistFileMessage(target, rec.originalName, QString(), now, true);
+                updateSession(target, rec.originalName, now);
+            }
+            successCount++;
+        }
+    }
+
+    // 结果反馈
+    QString msg = QStringLiteral("成功转发给 %1 个联系人").arg(successCount);
+    if (failCount > 0) {
+        msg += QStringLiteral("，%1 个文件因已失效而转发失败").arg(failCount);
+    }
+    QMessageBox::information(this, QStringLiteral("转发"), msg);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)

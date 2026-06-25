@@ -25,6 +25,7 @@ public:
 signals:
     void deleteRequested(qint64 msgId);
     void recallRequested(qint64 msgId, qint64 timestamp);
+    void forwardRequested(int msgType, const QString &content, const QString &fileId);
 
 private slots:
     void showContextMenu(const QPoint &pos);
@@ -32,6 +33,7 @@ private slots:
     void onEnlargeClicked();
     void onDeleteClicked();
     void onRecallClicked();
+    void onForwardClicked();
 
 private:
     void setupUI(const QString &text, const QString &senderName,
@@ -65,6 +67,10 @@ signals:
     void acceptClicked();
     void rejectClicked();
     void openClicked();
+    void forwardRequested(int msgType, const QString &content, const QString &fileId);
+
+private slots:
+    void showContextMenu(const QPoint &pos);
 
 private:
     void setupUI(const QString &fileName, qint64 fileSize, bool isMine,
@@ -78,6 +84,7 @@ private:
     QPushButton *m_acceptBtn;
     QPushButton *m_rejectBtn;
     QPushButton *m_openBtn;
+    State m_state = Pending;
 };
 
 #endif // MESSAGEBUBBLE_H
