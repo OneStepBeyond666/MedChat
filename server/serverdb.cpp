@@ -389,6 +389,31 @@ bool ServerDB::deleteAckedOfflineMessages(int receiverUid)
     return true;
 }
 
+bool ServerDB::deleteOfflineMessageByTimestamp(int senderUid, int receiverUid, qint64 timestamp)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+    q.prepare(
+        "DELETE FROM offline_messages "
+        "WHERE sender_uid = :sender AND receiver_uid = :receiver AND timestamp = :ts"
+    );
+    q.bindValue(":sender", senderUid);
+    q.bindValue(":receiver", receiverUid);
+    q.bindValue(":ts", timestamp);
+
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] 撤回删除离线消息失败:" << q.lastError().text();
+        return false;
+    }
+
+    int deleted = q.numRowsAffected();
+    if (deleted > 0) {
+        qDebug() << "[ServerDB] 撤回删除离线消息: sender=" << senderUid
+                 << "receiver=" << receiverUid << "deleted=" << deleted;
+    }
+    return true;
+}
+
 // =========================================================
 // friend_requests
 // =========================================================

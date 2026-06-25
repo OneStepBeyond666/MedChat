@@ -3,14 +3,23 @@
 #include <QVBoxLayout>
 #include <QPushButton>
 #include <QFont>
+#include <QMenu>
+#include <QApplication>
+#include <QClipboard>
+#include <QDialog>
+#include <QTextEdit>
+#include <QFrame>
+#include <QDateTime>
 
 // ==================== MessageBubble ====================
 
 MessageBubble::MessageBubble(const QString &text, const QString &senderName,
                              const QString &timeStr, bool isMine, QWidget *parent)
-    : QWidget(parent)
+    : QWidget(parent), m_text(text), m_senderName(senderName), m_isMine(isMine)
 {
     setupUI(text, senderName, timeStr, isMine);
+    setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this, &QWidget::customContextMenuRequested, this, &MessageBubble::showContextMenu);
 }
 
 void MessageBubble::setupUI(const QString &text, const QString &senderName,
@@ -32,23 +41,23 @@ void MessageBubble::setupUI(const QString &text, const QString &senderName,
     bubbleLayout->addWidget(nameLabel);
 
     // 消息气泡
-    QLabel *msgLabel = new QLabel(text);
-    msgLabel->setWordWrap(true);
-    msgLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    msgLabel->setContentsMargins(12, 8, 12, 8);
+    m_msgLabel = new QLabel(text);
+    m_msgLabel->setWordWrap(true);
+    m_msgLabel->setTextInteractionFlags(Qt::NoTextInteraction);
+    m_msgLabel->setContentsMargins(12, 8, 12, 8);
 
     if (isMine) {
-        msgLabel->setStyleSheet(
+        m_msgLabel->setStyleSheet(
             "background-color: #95ec69; color: #000; border-radius: 8px; "
             "font-size: 14px; padding: 8px 12px; border: none;"
         );
     } else {
-        msgLabel->setStyleSheet(
+        m_msgLabel->setStyleSheet(
             "background-color: white; color: #333; border-radius: 8px; "
             "font-size: 14px; padding: 8px 12px; border: 1px solid #e0e0e0;"
         );
     }
-    bubbleLayout->addWidget(msgLabel);
+    bubbleLayout->addWidget(m_msgLabel);
 
     // 时间
     QLabel *timeLabel = new QLabel(timeStr);
@@ -63,6 +72,114 @@ void MessageBubble::setupUI(const QString &text, const QString &senderName,
     } else {
         outerLayout->addWidget(bubbleContainer);
         outerLayout->addStretch();
+    }
+}
+
+void MessageBubble::showContextMenu(const QPoint &pos)
+{
+    // 已撤回消息不显示菜单
+    if (m_isRecalled) return;
+
+    QMenu menu(this);
+    menu.setStyleSheet(
+        "QMenu { background-color: white; border: 1px solid #e0e0e0; border-radius: 4px; padding: 4px 0; min-width: 120px; }"
+        "QMenu::item { padding: 8px 24px; font-size: 13px; color: #333; }"
+        "QMenu::item:selected { background-color: #f5f5f5; }"
+        "QMenu::item:disabled { color: #999; }"
+        "QMenu::separator { height: 1px; background: #e0e0e0; margin: 4px 8px; }"
+    );
+
+    QAction *copyAction = menu.addAction(QStringLiteral("复制"));
+    connect(copyAction, &QAction::triggered, this, &MessageBubble::onCopyClicked);
+
+    menu.addSeparator();
+
+    QAction *enlargeAction = menu.addAction(QStringLiteral("放大阅读"));
+    connect(enlargeAction, &QAction::triggered, this, &MessageBubble::onEnlargeClicked);
+
+    // 撤回：仅自己发送的消息 && 2分钟内
+    qint64 timeDiff = QDateTime::currentMSecsSinceEpoch() - m_timestamp;
+    bool canRecall = m_isMine && (timeDiff <= 120000);
+
+    if (canRecall) {
+        menu.addSeparator();
+        QAction *recallAction = menu.addAction(QStringLiteral("撤回"));
+        connect(recallAction, &QAction::triggered, this, &MessageBubble::onRecallClicked);
+    }
+
+    if (m_msgId > 0) {
+        menu.addSeparator();
+        QAction *deleteAction = menu.addAction(QStringLiteral("删除"));
+        connect(deleteAction, &QAction::triggered, this, &MessageBubble::onDeleteClicked);
+    }
+
+    menu.exec(mapToGlobal(pos));
+}
+
+void MessageBubble::onCopyClicked()
+{
+    QClipboard *clipboard = QApplication::clipboard();
+    clipboard->setText(m_text);
+}
+
+void MessageBubble::onEnlargeClicked()
+{
+    QDialog *dlg = new QDialog(this, Qt::Window);
+    dlg->setWindowTitle(QStringLiteral("消息内容"));
+    dlg->setMinimumSize(500, 400);
+    dlg->resize(600, 500);
+
+    QVBoxLayout *layout = new QVBoxLayout(dlg);
+    layout->setContentsMargins(24, 20, 24, 20);
+    layout->setSpacing(12);
+
+    // 头部：发送者 + 时间
+    QString timeStr = QDateTime::fromMSecsSinceEpoch(m_timestamp).toString("yyyy-MM-dd HH:mm:ss");
+    QLabel *headerLabel = new QLabel(m_senderName + "  " + timeStr);
+    headerLabel->setStyleSheet("font-size: 12px; color: #999;");
+    layout->addWidget(headerLabel);
+
+    // 分隔线
+    QFrame *line = new QFrame();
+    line->setFrameShape(QFrame::HLine);
+    line->setStyleSheet("color: #e0e0e0;");
+    layout->addWidget(line);
+
+    // 正文：大字体只读 QTextEdit
+    QTextEdit *textEdit = new QTextEdit();
+    textEdit->setReadOnly(true);
+    textEdit->setPlainText(m_text);
+    textEdit->setStyleSheet("font-size: 18px; border: none; color: #333;");
+    layout->addWidget(textEdit);
+
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->show();
+}
+
+void MessageBubble::onDeleteClicked()
+{
+    if (m_msgId > 0)
+        emit deleteRequested(m_msgId);
+}
+
+void MessageBubble::onRecallClicked()
+{
+    if (m_msgId > 0 && !m_isRecalled)
+        emit recallRequested(m_msgId, m_timestamp);
+}
+
+void MessageBubble::setRecalled(bool recalled, bool isMine)
+{
+    m_isRecalled = recalled;
+    if (recalled && m_msgLabel) {
+        m_text = isMine
+            ? QStringLiteral("[你撤回了一条消息]")
+            : QStringLiteral("[对方撤回了一条消息]");
+        m_msgLabel->setText(m_text);
+        m_msgLabel->setStyleSheet(
+            "color: #999999; font-style: italic; font-size: 12px; "
+            "padding: 4px 8px; background: transparent; border: none;"
+        );
     }
 }
 

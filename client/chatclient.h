@@ -49,6 +49,7 @@ public:
     void sendLogin(const QString &username, const QString &password);
 
     void sendTextMessage(const QString &to, const QString &text);
+    void sendRecallMessage(const QString &to, qint64 originalTimestamp);
     void sendFile(const QString &to, const QString &filePath);
     void acceptFile(const QString &fileId);
     void rejectFile(const QString &fileId, const QString &reason = "用户拒绝");
@@ -99,6 +100,7 @@ signals:
                                 const QString &birthday = QString(), const QString &region = QString());
     void textMessageReceived(const QString &from, const QString &to, const QString &text, qint64 timestamp);
     void messageAck(const QString &to, qint64 timestamp);
+    void messageRecalled(const QString &from, const QString &to, qint64 originalTimestamp);
 
     void fileOfferReceived(const QString &from, const QString &fileName, qint64 fileSize, const QString &fileId);
     void fileAccepted(const QString &fileId);
@@ -140,6 +142,7 @@ private:
     void handleOnlineStatus(const QJsonObject &msg);
     void handleMessage(const QJsonObject &msg);
     void handleMessageAck(const QJsonObject &msg);
+    void handleRecallMessage(const QJsonObject &msg);
     void handleFileOffer(const QJsonObject &msg);
     void handleFileAccept(const QJsonObject &msg);
     void handleFileReject(const QJsonObject &msg);

@@ -42,6 +42,9 @@ public:
     /// 离线消息：收到客户端 ACK 后删除已确认的消息（status=1，事务保证原子性）
     bool deleteAckedOfflineMessages(int receiverUid);
 
+    /// 离线消息：撤回时删除指定消息（按发送者、接收者、时间戳匹配）
+    bool deleteOfflineMessageByTimestamp(int senderUid, int receiverUid, qint64 timestamp);
+
     // ---- friend_requests ----
     /// 添加好友请求，返回请求 ID（-1 表示已有待处理请求）
     int  addFriendRequest(int fromUid, int toUid, const QString &message);

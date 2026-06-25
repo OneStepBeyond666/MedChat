@@ -20,6 +20,9 @@ namespace MsgType {
     // 文本消息
     constexpr const char* Message      = "message";
 
+    // 消息撤回
+    constexpr const char* RecallMessage = "recall_message";
+
     // 文件传输
     constexpr const char* FileOffer    = "file_offer";
     constexpr const char* FileAccept   = "file_accept";
@@ -76,6 +79,7 @@ public:
     static QJsonObject makeError(const QString &text);
     static QJsonObject makeAuthResult(bool success, const QString &msg, const QString &role = QString());
     static QJsonObject makeMessage(const QString &from, const QString &to, const QString &text);
+    static QJsonObject makeRecallMessage(const QString &from, const QString &to, qint64 originalTimestamp);
     static QJsonObject makeFileOffer(const QString &from, const QString &to,
                                      const QString &fileName, qint64 fileSize, const QString &fileId);
     static QJsonObject makeFileAccept(const QString &from, const QString &to, const QString &fileId);

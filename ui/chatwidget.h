@@ -24,6 +24,8 @@ struct ChatMessage {
     QString text;
     qint64 timestamp;
     bool isMine;
+    qint64 msgId = 0;  // 数据库消息ID
+    bool isRecalled = false;  // 是否已撤回
     // 文件相关
     QString fileId;
     QString fileName;
@@ -41,12 +43,15 @@ public:
     QString currentPartner() const { return m_partner; }
 
     void addTextMessage(const QString &sender, const QString &text, qint64 timestamp, bool isMine);
+    MessageBubble *addTextMessageWithId(const QString &sender, const QString &text, qint64 timestamp, bool isMine);
     void addFileMessage(const QString &sender, const QString &fileName, qint64 fileSize,
                         const QString &fileId, bool isMine);
     void updateFileProgress(const QString &fileId, qint64 received, qint64 total);
     void setFileCompleted(const QString &fileId);
     void setFileRejected(const QString &fileId, const QString &reason);
     void setFileError(const QString &fileId, const QString &error);
+    void removeMessageByMsgId(qint64 msgId);
+    void setMessageRecalled(qint64 msgId, bool isMine);
 
     void loadHistoryMessages(const QVector<StoredMessage> &messages,
                              const QString &partnerNick,
@@ -59,6 +64,8 @@ signals:
     void fileAccepted(const QString &fileId);
     void fileRejected(const QString &fileId);
     void fileOpenRequested(const QString &fileId);
+    void deleteRequested(qint64 msgId);
+    void recallRequested(qint64 msgId, qint64 timestamp);
 
 private slots:
     void onSendClicked();

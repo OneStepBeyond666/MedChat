@@ -75,6 +75,9 @@ private slots:
                                   int gender = 0, const QString &birthday = QString(),
                                   const QString &region = QString());
     void onAddFriendRequested();
+    void onMessageDeleteRequested(qint64 msgId);
+    void onMessageRecallRequested(qint64 msgId, qint64 timestamp);
+    void onMessageRecalled(const QString &from, const QString &to, qint64 originalTimestamp);
 
 private:
     void setupUI();
@@ -82,7 +85,7 @@ private:
     void showMessage(const QString &title, const QString &text);
     void loadMessagesFromDB(const QString &contactUid, const QString &partnerNick);
     void loadSessionsList();
-    void persistTextMessage(const QString &contactUid, const QString &content,
+    qint64 persistTextMessage(const QString &contactUid, const QString &content,
                             qint64 timestamp, bool isMine);
     void persistFileMessage(const QString &contactUid, const QString &fileName,
                             const QString &fileId, qint64 timestamp, bool isMine);

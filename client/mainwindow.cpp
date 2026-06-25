@@ -11,6 +11,7 @@
 #include "ui/friendrequestnotification.h"
 #include "ui/nearbypeoplewidget.h"
 #include "ui/changepassworddialog.h"
+#include "ui/messagebubble.h"
 #include <QSplitter>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -104,6 +105,10 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
     connect(m_chatWidget, &ChatWidget::sendFileWithPath, this, &MainWindow::onSendFileWithPath);
     connect(m_chatWidget, &ChatWidget::fileAccepted, this, &MainWindow::onFileAcceptFromUI);
     connect(m_chatWidget, &ChatWidget::fileRejected, this, &MainWindow::onFileRejectFromUI);
+    connect(m_chatWidget, &ChatWidget::deleteRequested, this, &MainWindow::onMessageDeleteRequested);
+    connect(m_chatWidget, &ChatWidget::recallRequested, this, &MainWindow::onMessageRecallRequested);
+
+    connect(m_client, &ChatClient::messageRecalled, this, &MainWindow::onMessageRecalled);
 
     statusBar()->showMessage("已连接 - " + m_nickname + " (" + (role == "doctor" ? "医生" : "患者") + ")");
 }
@@ -392,7 +397,7 @@ void MainWindow::onTextMessageReceived(const QString &from, const QString &to,
     QString partner = (to == m_username) ? from : to;
 
     // 持久化到 SQLite
-    persistTextMessage(partner, text, timestamp, false);
+    qint64 msgId = persistTextMessage(partner, text, timestamp, false);
 
     // 更新会话预览和时间（不改变未读数）
     SessionInfo si;
@@ -413,7 +418,8 @@ void MainWindow::onTextMessageReceived(const QString &from, const QString &to,
 
     // 仅当前对话联系人才实时显示
     if (m_chatWidget->currentPartner() == partner) {
-        m_chatWidget->addTextMessage(displayName(from), text, timestamp, false);
+        MessageBubble *bubble = m_chatWidget->addTextMessageWithId(displayName(from), text, timestamp, false);
+        if (bubble) bubble->setMsgId(msgId);
     }
 }
 
@@ -430,10 +436,12 @@ void MainWindow::onSendTextMessage(const QString &to, const QString &text)
     // 文件传输助手：本地回环，不经过服务端
     if (to == QString::fromUtf8(MsgType::FileHelper)) {
         QString helperUid = QString::fromUtf8(MsgType::FileHelper);
-        m_chatWidget->addTextMessage("me", text, now, true);
-        m_chatWidget->addTextMessage("me", text, now, false);
-        persistTextMessage(helperUid, text, now, true);
-        persistTextMessage(helperUid, text, now, false);
+        MessageBubble *sentBubble = m_chatWidget->addTextMessageWithId("me", text, now, true);
+        MessageBubble *recvBubble = m_chatWidget->addTextMessageWithId("me", text, now, false);
+        qint64 sentId = persistTextMessage(helperUid, text, now, true);
+        qint64 recvId = persistTextMessage(helperUid, text, now, false);
+        if (sentBubble) sentBubble->setMsgId(sentId);
+        if (recvBubble) recvBubble->setMsgId(recvId);
         updateSession(helperUid, text.left(50), now);
         return;
     }
@@ -441,11 +449,12 @@ void MainWindow::onSendTextMessage(const QString &to, const QString &text)
     m_client->sendTextMessage(to, text);
 
     // 持久化到 SQLite
-    persistTextMessage(to, text, now, true);
+    qint64 msgId = persistTextMessage(to, text, now, true);
     updateSession(to, text.left(50), now);
 
     // 立即在UI显示自己发送的消息（统一显示"me"）
-    m_chatWidget->addTextMessage("me", text, now, true);
+    MessageBubble *bubble = m_chatWidget->addTextMessageWithId("me", text, now, true);
+    if (bubble) bubble->setMsgId(msgId);
 }
 
 // ============================================================
@@ -743,7 +752,7 @@ void MainWindow::onFileRejectFromUI(const QString &fileId)
 // 持久化辅助方法
 // ============================================================
 
-void MainWindow::persistTextMessage(const QString &contactUid, const QString &content,
+qint64 MainWindow::persistTextMessage(const QString &contactUid, const QString &content,
                                      qint64 timestamp, bool isMine)
 {
     StoredMessage msg;
@@ -752,7 +761,7 @@ void MainWindow::persistTextMessage(const QString &contactUid, const QString &co
     msg.content = content;
     msg.timestamp = timestamp;
     msg.isMine = isMine;
-    LocalDB::instance().insertMessage(msg);
+    return LocalDB::instance().insertMessage(msg);
 }
 
 void MainWindow::persistFileMessage(const QString &contactUid, const QString &fileName,
@@ -947,6 +956,56 @@ void MainWindow::onDisconnected()
 void MainWindow::showMessage(const QString &title, const QString &text)
 {
     QMessageBox::information(this, title, text);
+}
+
+void MainWindow::onMessageDeleteRequested(qint64 msgId)
+{
+    // 1. 从 DB 删除
+    LocalDB::instance().deleteMessage(msgId);
+
+    // 2. 从 ChatWidget UI 移除对应 bubble
+    m_chatWidget->removeMessageByMsgId(msgId);
+}
+
+void MainWindow::onMessageRecallRequested(qint64 msgId, qint64 timestamp)
+{
+    Q_UNUSED(timestamp)
+    QString partner = m_chatWidget->currentPartner();
+    if (partner.isEmpty()) return;
+
+    // 1. 发送撤回请求到服务端
+    m_client->sendRecallMessage(partner, timestamp);
+
+    // 2. 乐观更新：立即标记本地 DB 为已撤回
+    LocalDB::instance().markMessageRecalled(msgId, true);
+
+    // 3. 更新 UI 显示
+    m_chatWidget->setMessageRecalled(msgId, true);
+
+    // 4. 更新会话预览
+    updateSession(partner, QStringLiteral("[你撤回了一条消息]"), QDateTime::currentMSecsSinceEpoch());
+}
+
+void MainWindow::onMessageRecalled(const QString &from, const QString &to, qint64 originalTimestamp)
+{
+    QString partner = (from == m_username) ? to : from;
+    bool isMine = (from == m_username);
+
+    // 仅当当前聊天窗口正在查看该对话时才更新 UI
+    if (m_chatWidget && m_chatWidget->currentPartner() == partner) {
+        // handleRecallMessage 已将数据库标记为已撤回，
+        // 这里按 timestamp 匹配找到 msgId 后直接更新 UI
+        QVector<StoredMessage> messages = LocalDB::instance().loadMessages(partner, 500);
+        for (const StoredMessage &sm : messages) {
+            if (sm.timestamp == originalTimestamp && sm.isMine == isMine) {
+                m_chatWidget->setMessageRecalled(sm.msgId, isMine);
+                break;
+            }
+        }
+    }
+
+    // 更新会话预览（无论是否正在查看该对话）
+    updateSession(partner, QStringLiteral("[撤回了一条消息]"), QDateTime::currentMSecsSinceEpoch());
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)

@@ -347,7 +347,13 @@ void ChatWidget::clearChat()
 void ChatWidget::addTextMessage(const QString &sender, const QString &text,
                                  qint64 timestamp, bool isMine)
 {
-    if (m_partner.isEmpty()) return;
+    addTextMessageWithId(sender, text, timestamp, isMine);
+}
+
+MessageBubble *ChatWidget::addTextMessageWithId(const QString &sender, const QString &text,
+                                 qint64 timestamp, bool isMine)
+{
+    if (m_partner.isEmpty()) return nullptr;
 
     ChatMessage msg;
     msg.type = ChatMessage::Text;
@@ -355,13 +361,18 @@ void ChatWidget::addTextMessage(const QString &sender, const QString &text,
     msg.text = text;
     msg.timestamp = timestamp;
     msg.isMine = isMine;
+    // msgId will be set later by MainWindow after persisting to DB
     m_messages.append(msg);
 
     int insertIndex = m_messageLayout->count() - 1;
     MessageBubble *bubble = new MessageBubble(text, sender, formatTime(timestamp), isMine);
+    bubble->setTimestamp(timestamp);
+    connect(bubble, &MessageBubble::deleteRequested, this, &ChatWidget::deleteRequested);
+    connect(bubble, &MessageBubble::recallRequested, this, &ChatWidget::recallRequested);
     m_messageLayout->insertWidget(insertIndex, bubble);
 
     scrollToBottom();
+    return bubble;
 }
 
 void ChatWidget::addFileMessage(const QString &sender, const QString &fileName,
@@ -477,11 +488,20 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
             msg.text = sm.content;
             msg.timestamp = sm.timestamp;
             msg.isMine = sm.isMine;
+            msg.msgId = sm.msgId;
+            msg.isRecalled = sm.isRecalled;
             m_messages.append(msg);
 
             int insertIndex = m_messageLayout->count() - 1;
             MessageBubble *bubble = new MessageBubble(sm.content, msg.sender,
                                                        formatTime(sm.timestamp), sm.isMine);
+            bubble->setMsgId(sm.msgId);
+            bubble->setTimestamp(sm.timestamp);
+            connect(bubble, &MessageBubble::deleteRequested, this, &ChatWidget::deleteRequested);
+            connect(bubble, &MessageBubble::recallRequested, this, &ChatWidget::recallRequested);
+            if (sm.isRecalled) {
+                bubble->setRecalled(true, sm.isMine);
+            }
             m_messageLayout->insertWidget(insertIndex, bubble);
         } else {
             ChatMessage msg;
@@ -528,4 +548,53 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
         }
     }
     scrollToBottom();
+}
+
+void ChatWidget::removeMessageByMsgId(qint64 msgId)
+{
+    // 遍历 layout 找到对应的 MessageBubble
+    for (int i = 0; i < m_messageLayout->count(); ++i) {
+        QLayoutItem *item = m_messageLayout->itemAt(i);
+        if (!item || !item->widget()) continue;
+
+        MessageBubble *bubble = qobject_cast<MessageBubble*>(item->widget());
+        if (bubble && bubble->msgId() == msgId) {
+            // 从 layout 中移除
+            m_messageLayout->removeWidget(bubble);
+            bubble->deleteLater();
+
+            // 从 m_messages 列表中移除对应条目
+            for (int j = 0; j < m_messages.size(); ++j) {
+                if (m_messages[j].msgId == msgId) {
+                    m_messages.removeAt(j);
+                    break;
+                }
+            }
+            break;
+        }
+    }
+}
+
+void ChatWidget::setMessageRecalled(qint64 msgId, bool isMine)
+{
+    for (int i = 0; i < m_messageLayout->count(); ++i) {
+        QLayoutItem *item = m_messageLayout->itemAt(i);
+        if (!item || !item->widget()) continue;
+
+        MessageBubble *bubble = qobject_cast<MessageBubble*>(item->widget());
+        if (bubble && bubble->msgId() == msgId && !bubble->isRecalled()) {
+            bubble->setRecalled(true, isMine);
+            // 更新 m_messages 中的状态
+            for (int j = 0; j < m_messages.size(); ++j) {
+                if (m_messages[j].msgId == msgId) {
+                    m_messages[j].isRecalled = true;
+                    m_messages[j].text = isMine
+                        ? QStringLiteral("[你撤回了一条消息]")
+                        : QStringLiteral("[对方撤回了一条消息]");
+                    break;
+                }
+            }
+            break;
+        }
+    }
 }

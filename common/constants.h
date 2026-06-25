@@ -22,6 +22,9 @@ constexpr int FILE_CHUNK_SIZE       = 65536;     // 64 KB 分块大小
 constexpr qint64 AVATAR_MAX_SIZE    = 2097152;   // 头像上传限制 2 MB
 constexpr int AVATAR_DISPLAY_SIZE   = 200;       // 头像显示标准像素
 
+// --- 消息撤回 ---
+constexpr qint64 RECALL_TIME_LIMIT    = 120000;    // 撤回时限 2 分钟（毫秒）
+
 // --- 存储 ---
 const QString DB_FOLDER_NAME        = QStringLiteral("medchat_data"); // 服务端数据库文件夹名
 

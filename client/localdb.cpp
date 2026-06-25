@@ -217,13 +217,17 @@ bool LocalDB::createMsgTables()
         "  content        TEXT,"
         "  file_id        TEXT,"
         "  timestamp      INTEGER NOT NULL,"
-        "  is_mine        INTEGER NOT NULL"
+        "  is_mine        INTEGER NOT NULL,"
+        "  recalled       INTEGER DEFAULT 0"
         ")"
     );
     if (!ok) {
         qCritical() << "[LocalDB] 创建 messages 表失败:" << q.lastError().text();
         return false;
     }
+
+    // 迁移：为旧版数据库添加 recalled 字段
+    q.exec("ALTER TABLE messages ADD COLUMN recalled INTEGER DEFAULT 0");
 
     ok = q.exec(
         "CREATE INDEX IF NOT EXISTS idx_msg_contact_time "
@@ -426,7 +430,7 @@ QVector<StoredMessage> LocalDB::loadMessages(const QString &contactUid, int limi
     QSqlDatabase db = QSqlDatabase::database(m_msgConnName);
     QSqlQuery q(db);
     q.prepare(
-        "SELECT msg_id, contact_uid, type, content, file_id, timestamp, is_mine "
+        "SELECT msg_id, contact_uid, type, content, file_id, timestamp, is_mine, recalled "
         "FROM messages WHERE contact_uid = :cid "
         "ORDER BY timestamp ASC LIMIT :lim"
     );
@@ -443,10 +447,32 @@ QVector<StoredMessage> LocalDB::loadMessages(const QString &contactUid, int limi
             m.fileId     = q.value(4).toString();
             m.timestamp  = q.value(5).toLongLong();
             m.isMine     = q.value(6).toBool();
+            m.isRecalled = q.value(7).toInt() != 0;
             result.append(m);
         }
     }
     return result;
+}
+
+void LocalDB::deleteMessage(qint64 msgId)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_msgConnName);
+    QSqlQuery q(db);
+    q.prepare("DELETE FROM messages WHERE msg_id = ?");
+    q.addBindValue(msgId);
+    q.exec();
+}
+
+void LocalDB::markMessageRecalled(qint64 msgId, bool isMine)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_msgConnName);
+    QSqlQuery q(db);
+    q.prepare("UPDATE messages SET recalled = 1, content = ? WHERE msg_id = ?");
+    q.addBindValue(isMine
+        ? QStringLiteral("[你撤回了一条消息]")
+        : QStringLiteral("[对方撤回了一条消息]"));
+    q.addBindValue(msgId);
+    q.exec();
 }
 
 // ============================================================

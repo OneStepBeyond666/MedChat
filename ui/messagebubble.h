@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QPoint>
 
 // 文本消息气泡
 class MessageBubble : public QWidget
@@ -15,9 +16,34 @@ public:
     explicit MessageBubble(const QString &text, const QString &senderName,
                            const QString &timeStr, bool isMine, QWidget *parent = nullptr);
 
+    void setMsgId(qint64 id) { m_msgId = id; }
+    void setTimestamp(qint64 ts) { m_timestamp = ts; }
+    qint64 msgId() const { return m_msgId; }
+    bool isRecalled() const { return m_isRecalled; }
+    void setRecalled(bool recalled, bool isMine);
+
+signals:
+    void deleteRequested(qint64 msgId);
+    void recallRequested(qint64 msgId, qint64 timestamp);
+
+private slots:
+    void showContextMenu(const QPoint &pos);
+    void onCopyClicked();
+    void onEnlargeClicked();
+    void onDeleteClicked();
+    void onRecallClicked();
+
 private:
     void setupUI(const QString &text, const QString &senderName,
                  const QString &timeStr, bool isMine);
+
+    QString m_text;
+    QString m_senderName;
+    qint64 m_msgId = 0;
+    qint64 m_timestamp = 0;
+    bool m_isMine = false;
+    bool m_isRecalled = false;
+    QLabel *m_msgLabel = nullptr;
 };
 
 // 文件传输消息卡片

@@ -75,6 +75,8 @@ void ChatServer::onMessageReceived(ClientHandler *handler, const QJsonObject &ms
         handleLogin(handler, msg);
     } else if (type == MsgType::Message) {
         handleMessage(handler, msg);
+    } else if (type == MsgType::RecallMessage) {
+        handleRecallMessage(handler, msg);
     } else if (type == MsgType::FileOffer) {
         handleFileOffer(handler, msg);
     } else if (type == MsgType::FileAccept) {
@@ -329,6 +331,57 @@ void ChatServer::handleMessage(ClientHandler *handler, const QJsonObject &msg)
     ack["to"] = to;
     ack["time"] = msg["time"];
     handler->sendMessage(ack);
+}
+
+void ChatServer::handleRecallMessage(ClientHandler *handler, const QJsonObject &msg)
+{
+    QString from = handler->username();
+    QString to = msg["to"].toString();
+    qint64 originalTimestamp = static_cast<qint64>(msg["original_timestamp"].toDouble());
+
+    // 验证发送者身份
+    if (msg["from"].toString() != from) {
+        handler->sendMessage(Protocol::makeError("撤回失败：身份验证失败"));
+        return;
+    }
+
+    // 校验时间（2分钟内）
+    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+    qint64 timeDiff = currentTime - originalTimestamp;
+    if (timeDiff > 120000) {
+        handler->sendMessage(Protocol::makeError("超过撤回时限（2分钟）"));
+        return;
+    }
+
+    // 查找接收方
+    ClientHandler *target = findClient(to);
+    if (target) {
+        // 接收方在线，转发撤回通知
+        QJsonObject fwd = msg;
+        fwd["from"] = from;
+        target->sendMessage(fwd);
+        qDebug() << QString("[撤回] %1 -> %2 : 已转发撤回通知（接收方在线）")
+                        .arg(from, to);
+    } else {
+        // 接收方不在线，删除离线消息
+        int fromUid = m_userManager->getUidByUsername(from);
+        int toUid = m_userManager->getUidByUsername(to);
+        if (fromUid > 0 && toUid > 0) {
+            m_serverDB->deleteOfflineMessageByTimestamp(fromUid, toUid, originalTimestamp);
+            qDebug() << QString("[撤回] %1 -> %2 : 已删除离线消息（接收方不在线）")
+                            .arg(from, to);
+        }
+    }
+
+    // 回传确认给发送方
+    QJsonObject ack = Protocol::makeMsg("message_ack");
+    ack["to"] = to;
+    ack["time"] = originalTimestamp;
+    ack["recalled"] = true;
+    handler->sendMessage(ack);
+
+    qDebug() << QString("[撤回] %1 撤回了发给 %2 的消息")
+                    .arg(from, to);
 }
 
 void ChatServer::handleFileOffer(ClientHandler *handler, const QJsonObject &msg)

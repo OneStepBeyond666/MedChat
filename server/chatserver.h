@@ -31,6 +31,7 @@ private:
     void handleRegister(ClientHandler *handler, const QJsonObject &msg);
     void handleLogin(ClientHandler *handler, const QJsonObject &msg);
     void handleMessage(ClientHandler *handler, const QJsonObject &msg);
+    void handleRecallMessage(ClientHandler *handler, const QJsonObject &msg);
     void handleFileOffer(ClientHandler *handler, const QJsonObject &msg);
     void handleFileAccept(ClientHandler *handler, const QJsonObject &msg);
     void handleFileData(ClientHandler *handler, const QJsonObject &msg);

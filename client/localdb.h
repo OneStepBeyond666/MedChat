@@ -41,6 +41,7 @@ struct StoredMessage {
     QString fileId;          // 文件消息关联 ID（文本消息为空）
     qint64  timestamp = 0;
     bool    isMine = false;
+    bool    isRecalled = false;  // 是否已撤回
 };
 
 struct FriendRequestInfo {
@@ -92,6 +93,8 @@ public:
     qint64 insertMessage(const StoredMessage &m);
     QVector<StoredMessage> loadMessages(const QString &contactUid,
                                         int limit = 200);
+    void deleteMessage(qint64 msgId);
+    void markMessageRecalled(qint64 msgId, bool isMine);
 
     // ---- meta.db: friend_requests ----
     void insertFriendRequest(const FriendRequestInfo &r);

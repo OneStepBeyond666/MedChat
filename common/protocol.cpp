@@ -79,6 +79,15 @@ QJsonObject Protocol::makeMessage(const QString &from, const QString &to, const 
     return obj;
 }
 
+QJsonObject Protocol::makeRecallMessage(const QString &from, const QString &to, qint64 originalTimestamp)
+{
+    QJsonObject obj = makeMsg(MsgType::RecallMessage);
+    obj["from"] = from;
+    obj["to"] = to;
+    obj["original_timestamp"] = originalTimestamp;
+    return obj;
+}
+
 QJsonObject Protocol::makeFileOffer(const QString &from, const QString &to,
                                     const QString &fileName, qint64 fileSize, const QString &fileId)
 {

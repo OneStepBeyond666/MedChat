@@ -82,6 +82,12 @@ void ChatClient::sendTextMessage(const QString &to, const QString &text)
     sendJson(obj);
 }
 
+void ChatClient::sendRecallMessage(const QString &to, qint64 originalTimestamp)
+{
+    QJsonObject obj = Protocol::makeRecallMessage(m_username, to, originalTimestamp);
+    sendJson(obj);
+}
+
 void ChatClient::sendFile(const QString &to, const QString &filePath)
 {
     QFileInfo fi(filePath);
@@ -195,6 +201,7 @@ void ChatClient::processMessage(const QJsonObject &msg)
     else if (type == MsgType::ContactList)  handleContactList(msg);
     else if (type == MsgType::OnlineStatus) handleOnlineStatus(msg);
     else if (type == MsgType::Message)      handleMessage(msg);
+    else if (type == MsgType::RecallMessage) handleRecallMessage(msg);
     else if (type == "message_ack")         handleMessageAck(msg);
     else if (type == MsgType::FileOffer)    handleFileOffer(msg);
     else if (type == MsgType::FileAccept)   handleFileAccept(msg);
@@ -336,6 +343,28 @@ void ChatClient::handleMessageAck(const QJsonObject &msg)
     QString to = msg["to"].toString();
     qint64 time = static_cast<qint64>(msg["time"].toDouble());
     emit messageAck(to, time);
+}
+
+void ChatClient::handleRecallMessage(const QJsonObject &msg)
+{
+    QString from = msg["from"].toString();
+    QString to = msg["to"].toString();
+    qint64 originalTimestamp = static_cast<qint64>(msg["original_timestamp"].toDouble());
+
+    // 判断是自己撤回的还是对方撤回的
+    bool isMine = (from == m_username);
+    QString partner = isMine ? to : from;
+
+    // 查找本地消息并标记撤回
+    QVector<StoredMessage> messages = LocalDB::instance().loadMessages(partner, 500);
+    for (const StoredMessage &sm : messages) {
+        if (sm.timestamp == originalTimestamp && sm.isMine == isMine && !sm.isRecalled) {
+            LocalDB::instance().markMessageRecalled(sm.msgId, isMine);
+            break;
+        }
+    }
+
+    emit messageRecalled(from, to, originalTimestamp);
 }
 
 void ChatClient::handleFileOffer(const QJsonObject &msg)
