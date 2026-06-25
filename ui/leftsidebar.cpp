@@ -93,7 +93,8 @@ void LeftSidebar::setupUI()
     m_chatIconBtn->setChecked(true);
     m_chatIconBtn->setCursor(Qt::PointingHandCursor);
     m_chatIconBtn->setToolTip("聊天");
-    QPixmap chatIcon = makeIconPixmap(28, QColor("#CCCCCC"), "chat");
+    // 初始图标直接用绿色 #07C160，onIconClicked 会在构造末尾统一刷新
+    QPixmap chatIcon = makeIconPixmap(28, QColor("#07C160"), "chat");
     m_chatIconBtn->setIcon(QIcon(chatIcon));
     m_chatIconBtn->setIconSize(QSize(28, 28));
 
@@ -194,6 +195,9 @@ void LeftSidebar::setupUI()
             this, &LeftSidebar::friendRequestEntryClicked);
     connect(m_contactList, &ContactListWidget::nearbyPeopleEntryClicked,
             this, &LeftSidebar::nearbyPeopleEntryClicked);
+
+    // 初始化：聊天图标为绿色高亮
+    onIconClicked(0);
 }
 
 void LeftSidebar::applyStyles()
