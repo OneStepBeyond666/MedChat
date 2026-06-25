@@ -1,4 +1,5 @@
 #include "messagebubble.h"
+#include "client/localdb.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QPushButton>
@@ -6,10 +7,13 @@
 #include <QMenu>
 #include <QApplication>
 #include <QClipboard>
+#include <QMimeData>
+#include <QUrl>
 #include <QDialog>
 #include <QTextEdit>
 #include <QFrame>
 #include <QDateTime>
+#include <QFile>
 
 // ==================== MessageBubble ====================
 
@@ -378,8 +382,21 @@ void FileMessageCard::showContextMenu(const QPoint &pos)
             emit forwardRequested(1, m_fileNameLabel->text(), fileId);
     });
 
-    // 复制文件名
+    // 复制文件到剪贴板（仅已完成且文件存在时可用）
     menu.addSeparator();
+    FileRecord fileRec = LocalDB::instance().getFileRecord(fileId);
+    QAction *copyFileAction = menu.addAction(QStringLiteral("复制"));
+    bool fileExists = (m_state == Completed && !fileRec.savePath.isEmpty() && QFile::exists(fileRec.savePath));
+    copyFileAction->setEnabled(fileExists);
+    connect(copyFileAction, &QAction::triggered, this, [fileRec]() {
+        QMimeData *mime = new QMimeData;
+        QList<QUrl> urls;
+        urls << QUrl::fromLocalFile(fileRec.savePath);
+        mime->setUrls(urls);
+        QApplication::clipboard()->setMimeData(mime);
+    });
+
+    // 复制文件名
     QAction *copyAction = menu.addAction(QStringLiteral("复制文件名"));
     connect(copyAction, &QAction::triggered, this, [this]() {
         QApplication::clipboard()->setText(m_fileNameLabel->text());
