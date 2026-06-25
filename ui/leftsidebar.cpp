@@ -4,6 +4,7 @@
 #include "avatarcropper.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QSizePolicy>
 #include <QFont>
 #include <QPixmap>
 #include <QPainter>
@@ -56,6 +57,7 @@ LeftSidebar::LeftSidebar(QWidget *parent)
 {
     setupUI();
     applyStyles();
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
 }
 
 void LeftSidebar::setupUI()

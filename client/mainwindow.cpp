@@ -14,6 +14,8 @@
 #include <QSplitter>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QTimer>
+#include <QSizePolicy>
 #include <QStatusBar>
 #include <QMessageBox>
 #include <QFileDialog>
@@ -119,7 +121,8 @@ void MainWindow::setupUI()
 
     // 左侧：LeftSidebar（双Tab视图）
     m_sidebar = new LeftSidebar;
-    m_sidebar->setFixedWidth(280);
+    m_sidebar->setMinimumWidth(280);
+    m_sidebar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
     splitter->addWidget(m_sidebar);
 
     // 右侧：QStackedWidget 切换占位页 / 聊天页
@@ -150,6 +153,11 @@ void MainWindow::setupUI()
     splitter->setStretchFactor(1, 1);
 
     mainLayout->addWidget(splitter);
+
+    // 延迟初始化分割器尺寸，避免窗口几何未确定时的计算偏差
+    QTimer::singleShot(0, this, [splitter]() {
+        splitter->setSizes({280, 1000});
+    });
 }
 
 void MainWindow::applyStyles()
