@@ -147,7 +147,8 @@ void ContactListWidget::rebuildList()
         // 图标
         QLabel *iconLabel = new QLabel;
         iconLabel->setFixedSize(40, 40);
-        iconLabel->setScaledContents(true);
+        iconLabel->setScaledContents(false);
+        iconLabel->setAlignment(Qt::AlignCenter);
         iconLabel->setPixmap(AvatarCropper::defaultAvatar(
             QString::fromUtf8("\xe6\x96\xb0\xe7\x9a\x84\xe6\x9c\x8b\xe5\x8f\x8b"), 40));
         frLayout->addWidget(iconLabel);
@@ -186,7 +187,8 @@ void ContactListWidget::rebuildList()
         // 图标
         QLabel *npIcon = new QLabel;
         npIcon->setFixedSize(40, 40);
-        npIcon->setScaledContents(true);
+        npIcon->setScaledContents(false);
+        npIcon->setAlignment(Qt::AlignCenter);
         npIcon->setPixmap(AvatarCropper::defaultAvatar(
             QString::fromUtf8("\xe9\x99\x84\xe8\xbf\x91"), 40));
         npLayout->addWidget(npIcon);
@@ -225,8 +227,9 @@ void ContactListWidget::rebuildList()
 
         QLabel *avatarLabel = new QLabel;
         avatarLabel->setFixedSize(40, 40);
+        avatarLabel->setScaledContents(false);
+        avatarLabel->setAlignment(Qt::AlignCenter);
         avatarLabel->setPixmap(AvatarCropper::defaultAvatar(helperName, 40));
-        avatarLabel->setScaledContents(true);
         hLayout->addWidget(avatarLabel);
 
         QLabel *nameLabel = new QLabel(helperName);
@@ -308,7 +311,8 @@ void ContactListWidget::rebuildList()
             // 头像 (40x40 圆形)
             QLabel *avatarLabel = new QLabel;
             avatarLabel->setFixedSize(40, 40);
-            avatarLabel->setScaledContents(true);
+            avatarLabel->setScaledContents(false);
+            avatarLabel->setAlignment(Qt::AlignCenter);
             if (!ci.avatarData.isEmpty())
                 avatarLabel->setPixmap(AvatarCropper::roundAvatar(ci.avatarData, 40));
             else

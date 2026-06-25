@@ -92,6 +92,10 @@ QPixmap AvatarCropper::roundAvatar(const QByteArray &data, int size)
     if (src.isNull())
         return defaultAvatar("?", size);
 
+    // 圆形直径比size小4px，留出透明边距，防止抗锯齿边缘被裁剪
+    int circleDiameter = size - 4;
+    int circleOffset = 2;  // 圆形左上角偏移2px，居中显示
+
     // 先缩放为正方形
     QPixmap scaled = src.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
     // 居中裁剪
@@ -99,15 +103,16 @@ QPixmap AvatarCropper::roundAvatar(const QByteArray &data, int size)
     int y = (scaled.height() - size) / 2;
     QPixmap cropped = scaled.copy(x, y, size, size);
 
-    // 绘制圆形
+    // 绘制圆形（缩小版，居中）
     QPixmap result(size, size);
     result.fill(Qt::transparent);
     QPainter painter(&result);
     painter.setRenderHint(QPainter::Antialiasing);
     QPainterPath path;
-    path.addEllipse(0, 0, size, size);
+    path.addEllipse(circleOffset, circleOffset, circleDiameter, circleDiameter);
     painter.setClipPath(path);
-    painter.drawPixmap(0, 0, cropped);
+    // 将裁剪后的正方形pixmap绘制到result上，位置居中
+    painter.drawPixmap(circleOffset, circleOffset, circleDiameter, circleDiameter, cropped);
     painter.end();
 
     cache.insert(key, result);
@@ -134,24 +139,28 @@ QPixmap AvatarCropper::defaultAvatar(const QString &name, int size)
     if (!name.isEmpty())
         colorIdx = qHash(name) % 10;
 
+    // 圆形直径比size小4px，留出透明边距
+    int circleDiameter = size - 4;
+    int circleOffset = 2;
+
     QPixmap result(size, size);
     result.fill(Qt::transparent);
     QPainter painter(&result);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    // 画圆形背景
+    // 画圆形背景（缩小版，居中）
     painter.setBrush(colors[colorIdx]);
     painter.setPen(Qt::NoPen);
-    painter.drawEllipse(0, 0, size, size);
+    painter.drawEllipse(circleOffset, circleOffset, circleDiameter, circleDiameter);
 
-    // 画首字
+    // 画首字（在圆形区域内居中）
     painter.setPen(Qt::white);
     QFont font = painter.font();
-    font.setPixelSize(size * 0.45);
+    font.setPixelSize(circleDiameter * 0.45);  // 基于圆形直径计算字体大小
     font.setBold(true);
     painter.setFont(font);
     QString ch = name.isEmpty() ? "?" : name.left(1);
-    painter.drawText(QRect(0, 0, size, size), Qt::AlignCenter, ch);
+    painter.drawText(QRect(circleOffset, circleOffset, circleDiameter, circleDiameter), Qt::AlignCenter, ch);
 
     painter.end();
 

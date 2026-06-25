@@ -50,6 +50,8 @@ QListWidgetItem *SessionListWidget::createSessionItem(const SessionInfo &s)
     QLabel *avatarLabel = new QLabel;
     avatarLabel->setFixedSize(40, 40);
     avatarLabel->setObjectName("avatar");
+    avatarLabel->setScaledContents(false);  // 防止pixmap被拉伸
+    avatarLabel->setAlignment(Qt::AlignCenter);
     if (!s.avatarData.isEmpty()) {
         avatarLabel->setPixmap(AvatarCropper::roundAvatar(s.avatarData, 40));
     } else {
