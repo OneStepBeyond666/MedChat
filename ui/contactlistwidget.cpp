@@ -99,6 +99,8 @@ void ContactListWidget::setupUI()
     m_listWidget = new QListWidget;
     m_listWidget->setObjectName("contactList");
     m_listWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_listWidget->setFocusPolicy(Qt::NoFocus);
+    m_listWidget->setAttribute(Qt::WA_MacShowFocusRect, false);
     layout->addWidget(m_listWidget);
 
     connect(m_listWidget, &QListWidget::itemClicked, this, &ContactListWidget::onItemClicked);
@@ -107,10 +109,11 @@ void ContactListWidget::setupUI()
 void ContactListWidget::applyStyles()
 {
     setStyleSheet(
-        "#contactList { border: none; background: #EBEBEB; }"
-        "#contactList::item { padding: 6px 12px; border-bottom: 1px solid #E0E0E0; }"
-        "#contactList::item:selected { background-color: #C8E6C9; }"
-        "#contactList::item:hover { background-color: #DCDCDC; }"
+        "#contactList { border: none; background: #EBEBEB; outline: none; }"
+        "#contactList::item { padding: 6px 12px; border-bottom: 1px solid #E0E0E0; outline: none; }"
+        "#contactList::item:selected { background-color: #C8E6C9; outline: none; }"
+        "#contactList::item:hover { background-color: #DCDCDC; outline: none; }"
+        "#contactList::item:focus { outline: none; border: none; }"
     );
 }
 

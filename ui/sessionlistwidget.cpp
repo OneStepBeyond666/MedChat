@@ -20,6 +20,8 @@ void SessionListWidget::setupUI()
     m_listWidget = new QListWidget;
     m_listWidget->setObjectName("sessionList");
     m_listWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_listWidget->setFocusPolicy(Qt::NoFocus);
+    m_listWidget->setAttribute(Qt::WA_MacShowFocusRect, false);
     layout->addWidget(m_listWidget);
 
     connect(m_listWidget, &QListWidget::itemClicked, this, &SessionListWidget::onItemClicked);
@@ -28,10 +30,11 @@ void SessionListWidget::setupUI()
 void SessionListWidget::applyStyles()
 {
     setStyleSheet(
-        "#sessionList { border: none; background: #EBEBEB; }"
-        "#sessionList::item { padding: 8px 12px; border-bottom: 1px solid #E0E0E0; }"
-        "#sessionList::item:selected { background-color: #C8E6C9; }"
-        "#sessionList::item:hover { background-color: #DCDCDC; }"
+        "#sessionList { border: none; background: #EBEBEB; outline: none; }"
+        "#sessionList::item { padding: 8px 12px; border-bottom: 1px solid #E0E0E0; outline: none; }"
+        "#sessionList::item:selected { background-color: #C8E6C9; outline: none; }"
+        "#sessionList::item:hover { background-color: #DCDCDC; outline: none; }"
+        "#sessionList::item:focus { outline: none; border: none; }"
     );
 }
 
