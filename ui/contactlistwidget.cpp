@@ -144,13 +144,13 @@ void ContactListWidget::rebuildList()
         frLayout->setContentsMargins(4, 4, 8, 4);
         frLayout->setSpacing(8);
 
-        // 图标
+        // 图标（缩小为32x32，适应较小的item高度）
         QLabel *iconLabel = new QLabel;
-        iconLabel->setFixedSize(40, 40);
+        iconLabel->setFixedSize(32, 32);
         iconLabel->setScaledContents(false);
         iconLabel->setAlignment(Qt::AlignCenter);
         iconLabel->setPixmap(AvatarCropper::defaultAvatar(
-            QString::fromUtf8("\xe6\x96\xb0\xe7\x9a\x84\xe6\x9c\x8b\xe5\x8f\x8b"), 40));
+            QString::fromUtf8("\xe6\x96\xb0\xe7\x9a\x84\xe6\x9c\x8b\xe5\x8f\x8b"), 32));
         frLayout->addWidget(iconLabel);
 
         // 名称
@@ -184,13 +184,13 @@ void ContactListWidget::rebuildList()
         npLayout->setContentsMargins(4, 4, 8, 4);
         npLayout->setSpacing(8);
 
-        // 图标
+        // 图标（缩小为32x32，适应较小的item高度）
         QLabel *npIcon = new QLabel;
-        npIcon->setFixedSize(40, 40);
+        npIcon->setFixedSize(32, 32);
         npIcon->setScaledContents(false);
         npIcon->setAlignment(Qt::AlignCenter);
         npIcon->setPixmap(AvatarCropper::defaultAvatar(
-            QString::fromUtf8("\xe9\x99\x84\xe8\xbf\x91"), 40));
+            QString::fromUtf8("\xe9\x99\x84\xe8\xbf\x91"), 32));
         npLayout->addWidget(npIcon);
 
         // 名称
@@ -226,10 +226,10 @@ void ContactListWidget::rebuildList()
         hLayout->setSpacing(8);
 
         QLabel *avatarLabel = new QLabel;
-        avatarLabel->setFixedSize(40, 40);
+        avatarLabel->setFixedSize(32, 32);
         avatarLabel->setScaledContents(false);
         avatarLabel->setAlignment(Qt::AlignCenter);
-        avatarLabel->setPixmap(AvatarCropper::defaultAvatar(helperName, 40));
+        avatarLabel->setPixmap(AvatarCropper::defaultAvatar(helperName, 32));
         hLayout->addWidget(avatarLabel);
 
         QLabel *nameLabel = new QLabel(helperName);
