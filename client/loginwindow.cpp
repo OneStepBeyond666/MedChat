@@ -51,7 +51,7 @@ void LoginWindow::setupUI()
     title1->setObjectName("titleLabel");
     lp->addWidget(title1);
 
-    QLabel *sub1 = new QLabel("MedChat v0.7.8");
+    QLabel *sub1 = new QLabel("MedChat v0.8.6");
     sub1->setAlignment(Qt::AlignCenter);
     sub1->setObjectName("subtitleLabel");
     lp->addWidget(sub1);
