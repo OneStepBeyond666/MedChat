@@ -43,8 +43,9 @@ QListWidgetItem *SessionListWidget::createSessionItem(const SessionInfo &s)
     // 创建自定义 widget 作为列表项
     QWidget *itemWidget = new QWidget;
     QHBoxLayout *layout = new QHBoxLayout(itemWidget);
-    layout->setContentsMargins(4, 4, 8, 4);
+    layout->setContentsMargins(4, 0, 8, 0);  // 上下边距为0，让布局自动居中
     layout->setSpacing(8);
+    layout->setAlignment(Qt::AlignVCenter);  // 整体垂直居中
 
     // 头像 (40x40 圆形)
     QLabel *avatarLabel = new QLabel;

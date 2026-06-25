@@ -308,8 +308,9 @@ void ContactListWidget::rebuildList()
 
             QWidget *itemWidget = new QWidget;
             QHBoxLayout *hLayout = new QHBoxLayout(itemWidget);
-            hLayout->setContentsMargins(4, 4, 8, 4);
+            hLayout->setContentsMargins(4, 0, 8, 0);  // 上下边距为0，让布局自动居中
             hLayout->setSpacing(8);
+            hLayout->setAlignment(Qt::AlignVCenter);  // 整体垂直居中
 
             // 头像 (40x40 圆形)
             QLabel *avatarLabel = new QLabel;
