@@ -5,6 +5,7 @@
 #include <QPainterPath>
 #include <QBuffer>
 #include <QCryptographicHash>
+#include <QImageReader>
 
 // ============================================================
 // 缓存基础设施
@@ -53,7 +54,10 @@ QPixmap AvatarCropper::selectAndCrop(QWidget *parent, int targetSize)
     if (filePath.isEmpty())
         return QPixmap();
 
-    QImage img(filePath);
+    // 使用 QImageReader + autoTransform 自动处理 EXIF Orientation
+    QImageReader reader(filePath);
+    reader.setAutoTransform(true);
+    QImage img = reader.read();
     if (img.isNull())
         return QPixmap();
 
@@ -87,10 +91,17 @@ QPixmap AvatarCropper::roundAvatar(const QByteArray &data, int size)
         return *it;
 
     QPixmap src;
-    src.loadFromData(data);
-
-    if (src.isNull())
-        return defaultAvatar("?", size);
+    // 使用 QImageReader + autoTransform 自动处理 EXIF Orientation
+    {
+        QBuffer buf(const_cast<QByteArray *>(&data));
+        buf.open(QIODevice::ReadOnly);
+        QImageReader reader(&buf);
+        reader.setAutoTransform(true);
+        QImage img = reader.read();
+        if (img.isNull())
+            return defaultAvatar("?", size);
+        src = QPixmap::fromImage(img);
+    }
 
     // 圆形直径比size小8px，留出透明边距，防止抗锯齿边缘被裁剪
     int circleDiameter = size - 8;
