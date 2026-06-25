@@ -160,7 +160,8 @@ QPixmap AvatarCropper::defaultAvatar(const QString &name, int size)
     font.setBold(true);
     painter.setFont(font);
     QString ch = name.isEmpty() ? "?" : name.left(1);
-    painter.drawText(QRect(circleOffset, circleOffset, circleDiameter, circleDiameter), Qt::AlignCenter, ch);
+    // 文字绘制区域微调：x偏移+1px修正中文字体左bearing导致的视觉偏左
+    painter.drawText(QRect(circleOffset + 1, circleOffset, circleDiameter, circleDiameter), Qt::AlignCenter, ch);
 
     painter.end();
 
