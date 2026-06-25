@@ -195,9 +195,6 @@ void LeftSidebar::setupUI()
             this, &LeftSidebar::friendRequestEntryClicked);
     connect(m_contactList, &ContactListWidget::nearbyPeopleEntryClicked,
             this, &LeftSidebar::nearbyPeopleEntryClicked);
-
-    // 初始化：聊天图标为绿色高亮
-    onIconClicked(0);
 }
 
 void LeftSidebar::applyStyles()
