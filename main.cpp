@@ -64,7 +64,7 @@ int runServer(int argc, char *argv[], quint16 port)
 
     // 先不装 handler，用 fprintf 打 banner（保证一定能看到）
     serverLog("================================================");
-    serverLog("   MedChat Server v1.0  -  远程问诊服务器");
+    serverLog("   MedChat Server v3.2  -  远程问诊服务器");
     serverLog("================================================");
     serverLog(QString("  监听端口: %1").arg(port));
     serverLog(QString("  启动时间: %1").arg(

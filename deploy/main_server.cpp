@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     QCoreApplication app(argc, argv);
 
     serverLog("================================================");
-    serverLog("   MedChat Server v2.0  -  远程问诊服务器 (Linux)");
+    serverLog("   MedChat Server v3.2  -  远程问诊服务器 (Linux)");
     serverLog("================================================");
     serverLog(QString("  监听端口: %1").arg(port));
     serverLog(QString("  启动时间: %1").arg(
