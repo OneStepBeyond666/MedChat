@@ -70,10 +70,12 @@ QListWidgetItem *SessionListWidget::createSessionItem(const SessionInfo &s)
     QWidget *topRow = new QWidget;
     QHBoxLayout *topLayout = new QHBoxLayout(topRow);
     topLayout->setContentsMargins(0, 0, 0, 0);
+    topLayout->setAlignment(Qt::AlignVCenter);  // 确保垂直居中
 
     QLabel *nickLabel = new QLabel(s.nickname.isEmpty() ? s.username : s.nickname);
     nickLabel->setStyleSheet("font-size: 14px; font-weight: bold; color: #333;");
     nickLabel->setObjectName("nickLabel");
+    nickLabel->setAlignment(Qt::AlignVCenter);  // 文字垂直居中
     topLayout->addWidget(nickLabel);
 
     topLayout->addStretch();
@@ -96,6 +98,7 @@ QListWidgetItem *SessionListWidget::createSessionItem(const SessionInfo &s)
     }
     QLabel *timeLabel = new QLabel(timeStr);
     timeLabel->setStyleSheet("font-size: 11px; color: #999;");
+    timeLabel->setAlignment(Qt::AlignVCenter);  // 文字垂直居中
     topLayout->addWidget(timeLabel);
 
     midLayout->addWidget(topRow);
@@ -108,6 +111,7 @@ QListWidgetItem *SessionListWidget::createSessionItem(const SessionInfo &s)
     previewLabel->setStyleSheet("font-size: 12px; color: #999;");
     previewLabel->setMaximumWidth(180);
     previewLabel->setWordWrap(false);
+    previewLabel->setAlignment(Qt::AlignVCenter);  // 文字垂直居中
     midLayout->addWidget(previewLabel);
 
     layout->addWidget(midWidget, 1);

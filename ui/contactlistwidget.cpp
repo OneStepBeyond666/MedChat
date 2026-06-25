@@ -157,6 +157,7 @@ void ContactListWidget::rebuildList()
         QLabel *frNameLabel = new QLabel(QString::fromUtf8(
             "\xe6\x96\xb0\xe7\x9a\x84\xe6\x9c\x8b\xe5\x8f\x8b"));  // "新的朋友"
         frNameLabel->setStyleSheet("font-size: 14px; color: #333;");
+        frNameLabel->setAlignment(Qt::AlignVCenter);  // 文字垂直居中
         frLayout->addWidget(frNameLabel, 1);
 
         // 红点徽标
@@ -197,6 +198,7 @@ void ContactListWidget::rebuildList()
         QLabel *npNameLabel = new QLabel(QString::fromUtf8(
             "\xe9\x99\x84\xe8\xbf\x91\xe7\x9a\x84\xe4\xba\xba"));  // "附近的人"
         npNameLabel->setStyleSheet("font-size: 14px; color: #333;");
+        npNameLabel->setAlignment(Qt::AlignVCenter);  // 文字垂直居中
         npLayout->addWidget(npNameLabel, 1);
 
         // 人数徽标
@@ -237,6 +239,7 @@ void ContactListWidget::rebuildList()
         nf.setBold(true);
         nameLabel->setFont(nf);
         nameLabel->setStyleSheet("color: #07c160; font-size: 14px;");
+        nameLabel->setAlignment(Qt::AlignVCenter);  // 文字垂直居中
         hLayout->addWidget(nameLabel);
         hLayout->addStretch();
 
@@ -322,6 +325,7 @@ void ContactListWidget::rebuildList()
             // 昵称
             QLabel *nameLabel = new QLabel(display);
             nameLabel->setStyleSheet("font-size: 14px; color: #333;");
+            nameLabel->setAlignment(Qt::AlignVCenter);  // 文字垂直居中
             if (ci.online) {
                 QFont font = nameLabel->font();
                 font.setBold(true);
