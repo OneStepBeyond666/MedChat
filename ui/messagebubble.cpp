@@ -355,20 +355,44 @@ QString FileMessageCard::formatSize(qint64 bytes)
 
 void FileMessageCard::showContextMenu(const QPoint &pos)
 {
-    // 只有已完成的文件才能转发
-    if (m_state != Completed) return;
-
     QMenu menu(this);
     menu.setStyleSheet(
         "QMenu { background-color: white; border: 1px solid #e0e0e0; border-radius: 4px; padding: 4px 0; min-width: 120px; }"
         "QMenu::item { padding: 8px 24px; font-size: 13px; color: #333; }"
         "QMenu::item:selected { background-color: #f5f5f5; }"
+        "QMenu::item:disabled { color: #999; }"
+        "QMenu::separator { height: 1px; background: #e0e0e0; margin: 4px 8px; }"
     );
 
+    // 打开文件（仅已完成状态可用）
+    QAction *openAction = menu.addAction(QStringLiteral("打开"));
+    openAction->setEnabled(m_state == Completed);
+    connect(openAction, &QAction::triggered, this, &FileMessageCard::openClicked);
+
+    // 转发（仅已完成状态可用）
+    menu.addSeparator();
     QAction *forwardAction = menu.addAction(QStringLiteral("转发"));
+    forwardAction->setEnabled(m_state == Completed);
     connect(forwardAction, &QAction::triggered, this, [this]() {
-        emit forwardRequested(1, m_fileNameLabel->text(), fileId);
+        if (m_state == Completed)
+            emit forwardRequested(1, m_fileNameLabel->text(), fileId);
     });
+
+    // 复制文件名
+    menu.addSeparator();
+    QAction *copyAction = menu.addAction(QStringLiteral("复制文件名"));
+    connect(copyAction, &QAction::triggered, this, [this]() {
+        QApplication::clipboard()->setText(m_fileNameLabel->text());
+    });
+
+    // 删除（仅当有 msgId 时可用）
+    if (m_msgId > 0) {
+        menu.addSeparator();
+        QAction *deleteAction = menu.addAction(QStringLiteral("删除"));
+        connect(deleteAction, &QAction::triggered, this, [this]() {
+            emit deleteRequested(m_msgId);
+        });
+    }
 
     menu.exec(mapToGlobal(pos));
 }

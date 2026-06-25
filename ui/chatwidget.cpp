@@ -399,6 +399,7 @@ void ChatWidget::addFileMessage(const QString &sender, const QString &fileName,
     connect(card, &FileMessageCard::rejectClicked, this, &ChatWidget::onFileRejectClicked);
     connect(card, &FileMessageCard::openClicked, this, &ChatWidget::onFileOpenClicked);
     connect(card, &FileMessageCard::forwardRequested, this, &ChatWidget::forwardRequested);
+    connect(card, &FileMessageCard::deleteRequested, this, &ChatWidget::deleteRequested);
 
     m_fileCards[fileId] = card;
     m_messageLayout->insertWidget(insertIndex, card);
@@ -530,11 +531,13 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
                 sm.content, fsize, sm.isMine,
                 msg.sender, formatTime(sm.timestamp));
             fcard->fileId = sm.fileId;
+            fcard->setMsgId(sm.msgId);
 
             connect(fcard, &FileMessageCard::acceptClicked, this, &ChatWidget::onFileAcceptClicked);
             connect(fcard, &FileMessageCard::rejectClicked, this, &ChatWidget::onFileRejectClicked);
             connect(fcard, &FileMessageCard::openClicked, this, &ChatWidget::onFileOpenClicked);
             connect(fcard, &FileMessageCard::forwardRequested, this, &ChatWidget::forwardRequested);
+            connect(fcard, &FileMessageCard::deleteRequested, this, &ChatWidget::deleteRequested);
 
             if (rec.status == 1) {
                 fcard->setState(FileMessageCard::Completed);

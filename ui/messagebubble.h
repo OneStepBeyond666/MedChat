@@ -62,12 +62,15 @@ public:
     void setProgress(qint64 received, qint64 total);
     void setState(State state, const QString &info = "");
     QString fileId; // 用于外部关联
+    void setMsgId(qint64 id) { m_msgId = id; }
+    qint64 msgId() const { return m_msgId; }
 
 signals:
     void acceptClicked();
     void rejectClicked();
     void openClicked();
     void forwardRequested(int msgType, const QString &content, const QString &fileId);
+    void deleteRequested(qint64 msgId);
 
 private slots:
     void showContextMenu(const QPoint &pos);
@@ -85,6 +88,7 @@ private:
     QPushButton *m_rejectBtn;
     QPushButton *m_openBtn;
     State m_state = Pending;
+    qint64 m_msgId = 0;
 };
 
 #endif // MESSAGEBUBBLE_H
