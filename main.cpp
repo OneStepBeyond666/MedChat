@@ -8,6 +8,7 @@
 #include "client/chatclient.h"
 #include "client/loginwindow.h"
 #include "client/mainwindow.h"
+#include "ui/avatarcropper.h"
 
 #include <cstdio>
 
@@ -103,6 +104,9 @@ int runClient(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setApplicationName("MedChat");
     app.setApplicationVersion("1.0");
+
+    // 清空头像缓存，确保使用最新的圆形直径
+    AvatarCropper::clearCache();
 
     // 不再内嵌服务器 — 需要先通过 --server 参数启动独立服务器
     ChatClient *client = new ChatClient(&app);
