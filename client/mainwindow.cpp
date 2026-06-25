@@ -1095,6 +1095,8 @@ void MainWindow::onForwardMessage(int msgType, const QString &content, const QSt
                 if (m_chatWidget && m_chatWidget->currentPartner() == fileHelper) {
                     m_chatWidget->addFileMessage("me", rec.originalName, rec.size, newFileId, true);
                     m_chatWidget->addFileMessage(fileHelper, rec.originalName, rec.size, newFileId, false);
+                    // FileHelper 文件已完成，直接标记卡片为完成状态
+                    m_chatWidget->setFileCompleted(newFileId);
                 }
             } else {
                 // 设置 pending 状态让 onFileSendInitiated 正确处理持久化
