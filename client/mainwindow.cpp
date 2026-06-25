@@ -34,6 +34,7 @@ MainWindow::MainWindow(ChatClient *client, const QString &username, const QStrin
       m_nickname(nickname), m_avatarData(avatarData)
 {
     setWindowTitle(QString("远程问诊系统 - %1 (%2)").arg(m_nickname, role == "doctor" ? "医生" : "患者"));
+    setWindowIcon(QIcon(":/app_icon.png"));
     resize(960, 640);
 
     setupUI();

@@ -61,3 +61,6 @@ HEADERS += \
 
 RESOURCES += \
     resources/style.qrc
+
+# Windows 应用程序图标
+RC_FILE = resources/appicon.rc

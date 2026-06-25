@@ -2,5 +2,7 @@
 <RCC version="1.0">
     <qresource prefix="/">
         <file alias="ui/arrow_down.png">arrow_down.png</file>
+        <file>app_icon.png</file>
     </qresource>
 </RCC>
+
