@@ -6,7 +6,6 @@
 #include <QInputDialog>
 #include <QTimer>
 #include <QCryptographicHash>
-#include <QPixmap>
 
 // ============================================================
 // 构造
@@ -47,19 +46,12 @@ void LoginWindow::setupUI()
     lp->setSpacing(14);
     lp->setContentsMargins(40, 50, 40, 30);
 
-    // 登录页 Logo（自定义图标）
-    QPixmap loginLogo(":/app_icon.png");
-    QLabel *logo1 = new QLabel;
-    logo1->setPixmap(loginLogo.scaled(80, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    logo1->setAlignment(Qt::AlignCenter);
-    lp->addWidget(logo1);
-
     QLabel *title1 = new QLabel("远程问诊系统");
     title1->setAlignment(Qt::AlignCenter);
     title1->setObjectName("titleLabel");
     lp->addWidget(title1);
 
-    QLabel *sub1 = new QLabel("MedChat v0.3");
+    QLabel *sub1 = new QLabel("MedChat v0.7.8");
     sub1->setAlignment(Qt::AlignCenter);
     sub1->setObjectName("subtitleLabel");
     lp->addWidget(sub1);
@@ -127,13 +119,6 @@ void LoginWindow::setupUI()
     QVBoxLayout *rp = new QVBoxLayout(regPage);
     rp->setSpacing(12);
     rp->setContentsMargins(40, 40, 40, 30);
-
-    // 注册页 Logo（自定义图标）
-    QPixmap regLogo(":/app_icon.png");
-    QLabel *logo2 = new QLabel;
-    logo2->setPixmap(regLogo.scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    logo2->setAlignment(Qt::AlignCenter);
-    rp->addWidget(logo2);
 
     QLabel *title2 = new QLabel("创建新账号");
     title2->setAlignment(Qt::AlignCenter);
