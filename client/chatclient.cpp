@@ -124,7 +124,9 @@ bool ChatClient::isTransferActive(const QString &fileId) const
     auto it = m_fileTransfers.constFind(fileId);
     if (it == m_fileTransfers.constEnd())
         return false;
-    return it->file != nullptr; // acceptFile() 后才非空
+    // 发送方: isSending=true 即活跃（即使 file 尚未打开，等待对方接受）
+    // 接收方: file!=nullptr 即已接受正在传输
+    return it->isSending || it->file != nullptr;
 }
 
 void ChatClient::acceptFile(const QString &fileId)

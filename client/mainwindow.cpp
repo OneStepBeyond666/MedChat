@@ -595,6 +595,7 @@ void MainWindow::onFileSendInitiated(const QString &to, const QString &fileName,
     // 仅当目标是当前对话方才在 UI 添加文件卡片
     if (m_chatWidget && m_chatWidget->currentPartner() == to) {
         m_chatWidget->addFileMessage("me", fileName, fileSize, fileId, true);
+        m_chatWidget->setFileTransferring(fileId); // 显示"传输中..."
     }
 
     qint64 now = QDateTime::currentMSecsSinceEpoch();

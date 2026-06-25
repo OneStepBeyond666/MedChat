@@ -420,6 +420,12 @@ void ChatWidget::setFileCompleted(const QString &fileId)
         m_fileCards[fileId]->setState(FileMessageCard::Completed);
 }
 
+void ChatWidget::setFileTransferring(const QString &fileId)
+{
+    if (m_fileCards.contains(fileId))
+        m_fileCards[fileId]->setState(FileMessageCard::Transferring);
+}
+
 void ChatWidget::setFileRejected(const QString &fileId, const QString &reason)
 {
     if (m_fileCards.contains(fileId))

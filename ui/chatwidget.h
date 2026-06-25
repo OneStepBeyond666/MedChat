@@ -48,6 +48,7 @@ public:
                         const QString &fileId, bool isMine);
     void updateFileProgress(const QString &fileId, qint64 received, qint64 total);
     void setFileCompleted(const QString &fileId);
+    void setFileTransferring(const QString &fileId);
     void setFileRejected(const QString &fileId, const QString &reason);
     void setFileError(const QString &fileId, const QString &error);
     void removeMessageByMsgId(qint64 msgId);
