@@ -616,12 +616,12 @@ void MainWindow::onFileSendInitiated(const QString &to, const QString &fileName,
         }
     }
 
-    // 写入 file_index 记录（发送方，status=1 已完成）
+    // 写入 file_index 记录（发送方，status=0 传输中）
     FileRecord rec;
     rec.fileId = fileId;
     rec.originalName = fileName;
     rec.size = fileSize;
-    rec.status = savedPath.isEmpty() ? 2 : 1; // 复制失败则标记失败
+    rec.status = savedPath.isEmpty() ? 2 : 0; // 本地存档复制失败则标记失败，否则传输中
     rec.savePath = savedPath;
     QFileInfo fi(savedPath);
     rec.saveName = fi.fileName();
