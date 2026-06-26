@@ -140,7 +140,7 @@ MedChat.exe
 
 ```bash
 # 配置环境变量
-export PATH="/c/Qt/Qt5.12.12/5.12.12/mingw73_64/bin:/c/Qt/Qt5.12.12/Tools/mingw730_64/bin:$PATH"
+export PATH="/c/Qt/Qt5.12.12/5.12.12/mingw73_64/bin:$PATH"
 
 # 构建
 cd source/build
