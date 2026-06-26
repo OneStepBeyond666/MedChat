@@ -293,6 +293,9 @@ void ChatServer::handleMessage(ClientHandler *handler, const QJsonObject &msg)
         qDebug() << QString("[消息离线] %1 -> %2 : 接收方不在线，保存离线消息")
                         .arg(from, to);
         
+        // 【修复】：提取消息中的毫秒时间戳，传给 saveOfflineMessage
+        qint64 msgTime = static_cast<qint64>(msg["time"].toDouble());
+        
         // 将完整 JSON 帧存入数据库（加上 offline 标记供客户端去重）
         QJsonObject fwdMsg = msg;
         fwdMsg["from"] = from;
@@ -300,7 +303,7 @@ void ChatServer::handleMessage(ClientHandler *handler, const QJsonObject &msg)
         QJsonDocument doc(fwdMsg);
         QString payload = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
         
-        if (m_serverDB->saveOfflineMessage(fromUid, toUid, payload, 0)) {
+        if (m_serverDB->saveOfflineMessage(fromUid, toUid, payload, 0, msgTime)) {
             // 离线消息保存成功，通知发送方
             QJsonObject ack = Protocol::makeMsg("message_ack");
             ack["to"] = to;
@@ -756,7 +759,9 @@ void ChatServer::handleFriendRequest(ClientHandler *handler, const QJsonObject &
         // 目标离线 → 保存为离线消息，登录时下发
         QJsonDocument doc(requestMsg);
         QString payload = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
-        m_serverDB->saveOfflineMessage(fromUid, toUid, payload, 2);
+        // 【修复】：提取请求中的毫秒时间戳，传给 saveOfflineMessage
+        qint64 reqTime = static_cast<qint64>(requestMsg["time"].toDouble());
+        m_serverDB->saveOfflineMessage(fromUid, toUid, payload, 2, reqTime);
         qDebug() << QString("[好友请求] %1 不在线，已保存离线消息").arg(toUsername);
     }
 }

@@ -270,7 +270,7 @@ QSqlDatabase ServerDB::cloneConnection(const QString &connName)
     return clone;
 }
 
-bool ServerDB::saveOfflineMessage(int senderUid, int receiverUid, const QString &payload, int type)
+bool ServerDB::saveOfflineMessage(int senderUid, int receiverUid, const QString &payload, int type, qint64 timestamp)
 {
     QSqlDatabase db = QSqlDatabase::database(m_connName);
     QSqlQuery q(db);
@@ -283,14 +283,16 @@ bool ServerDB::saveOfflineMessage(int senderUid, int receiverUid, const QString 
     q.bindValue(":receiver", receiverUid);
     q.bindValue(":payload", payload);
     q.bindValue(":type", type);
-    q.bindValue(":timestamp", QDateTime::currentDateTime().toSecsSinceEpoch());
+    // 【核心修复】：直接使用传入的毫秒时间戳，删掉原来的 toSecsSinceEpoch()
+    q.bindValue(":timestamp", timestamp);
 
     if (!q.exec()) {
         qWarning() << "[ServerDB] 保存离线消息失败:" << q.lastError().text();
         return false;
     }
 
-    qDebug() << "[ServerDB] 离线消息已保存: sender=" << senderUid << "receiver=" << receiverUid;
+    qDebug() << "[ServerDB] 离线消息已保存: sender=" << senderUid << "receiver=" << receiverUid
+             << "timestamp=" << timestamp;
     return true;
 }
 
@@ -408,10 +410,14 @@ bool ServerDB::deleteOfflineMessageByTimestamp(int senderUid, int receiverUid, q
 
     int deleted = q.numRowsAffected();
     if (deleted > 0) {
-        qDebug() << "[ServerDB] 撤回删除离线消息: sender=" << senderUid
+        qDebug() << "[ServerDB] 撤回删除离线消息成功: sender=" << senderUid
                  << "receiver=" << receiverUid << "deleted=" << deleted;
+    } else {
+        // 【核心修复】：没删掉数据时，打印警告，暴露时间戳不匹配的问题
+        qWarning() << "[ServerDB] 撤回删除离线消息失败(匹配0行): sender=" << senderUid
+                   << "receiver=" << receiverUid << "target_ts=" << timestamp;
     }
-    return true;
+    return deleted > 0;  // 返回是否真正删除了数据
 }
 
 // =========================================================

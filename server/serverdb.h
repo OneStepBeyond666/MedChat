@@ -30,8 +30,8 @@ public:
     /// 获取某用户所有已接受的好友 UID 列表（status=1）
     QList<int> getFriendUids(int uid);
 
-    /// 离线消息：保存离线消息
-    bool saveOfflineMessage(int senderUid, int receiverUid, const QString &payload, int type = 0);
+    /// 离线消息：保存离线消息（timestamp 由调用方传入，毫秒级）
+    bool saveOfflineMessage(int senderUid, int receiverUid, const QString &payload, int type, qint64 timestamp);
 
     /// 离线消息：获取待下发的消息（status <= 1，不删除）
     QJsonArray getPendingOfflineMessages(int receiverUid);
