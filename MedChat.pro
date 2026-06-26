@@ -30,10 +30,11 @@ SOURCES += \
     ui/sessionlistwidget.cpp \
     ui/friendrequestwidget.cpp \
     ui/friendrequestnotification.cpp \
-    ui/nearbypeoplewidget.cpp \
+    ui/nearpeoplewidget.cpp \
     ui/forgotpassworddialog.cpp \
     ui/changepassworddialog.cpp \
-    ui/forwarddialog.cpp
+    ui/forwarddialog.cpp \
+    ui/messageinput.cpp
 
 HEADERS += \
     common/protocol.h \
@@ -56,10 +57,11 @@ HEADERS += \
     ui/sessionlistwidget.h \
     ui/friendrequestwidget.h \
     ui/friendrequestnotification.h \
-    ui/nearbypeoplewidget.h \
+    ui/nearpeoplewidget.h \
     ui/forgotpassworddialog.h \
     ui/changepassworddialog.h \
-    ui/forwarddialog.h
+    ui/forwarddialog.h \
+    ui/messageinput.h
 
 RESOURCES += \
     resources/style.qrc

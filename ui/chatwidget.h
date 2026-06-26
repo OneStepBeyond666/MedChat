@@ -3,7 +3,6 @@
 
 #include <QWidget>
 #include <QLabel>
-#include <QTextEdit>
 #include <QPushButton>
 #include <QToolButton>
 #include <QScrollArea>
@@ -15,6 +14,7 @@
 
 class MessageBubble;
 class FileMessageCard;
+class MessageInput;
 struct StoredMessage;
 
 struct ChatMessage {
@@ -98,7 +98,7 @@ private:
     QScrollArea *m_scrollArea;
 
     // 输入区
-    QTextEdit *m_inputEdit;
+    MessageInput *m_inputEdit;
     QToolButton *m_plusBtn;
     QPushButton *m_sendBtn;
 

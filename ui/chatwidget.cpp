@@ -1,4 +1,5 @@
 #include "chatwidget.h"
+#include "messageinput.h"
 #include "messagebubble.h"
 #include "client/localdb.h"
 #include "client/chatclient.h"
@@ -118,12 +119,15 @@ void ChatWidget::setupUI()
     inputLayout->setSpacing(4);
 
     // 输入框
-    m_inputEdit = new QTextEdit;
+    m_inputEdit = new MessageInput;
     m_inputEdit->setPlaceholderText("输入消息...");
     m_inputEdit->setObjectName("inputEdit");
     m_inputEdit->setAcceptRichText(false);
     m_inputEdit->setFixedHeight(60);
     inputLayout->addWidget(m_inputEdit);
+
+    // 连接 MessageInput 的 sendTriggered 信号到发送逻辑
+    connect(m_inputEdit, &MessageInput::sendTriggered, this, &ChatWidget::onSendClicked);
 
     // 工具栏：+ 按钮 (左) + 弹性空间 + 发送按钮 (右)
     QHBoxLayout *toolBar = new QHBoxLayout;
