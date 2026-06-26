@@ -1,7 +1,7 @@
 # 🏥 MedChat
 
 <p align="center">
-  <img src="resources/app_icon.png" alt="MedChat Logo" width="120" height="120">
+  <img src="resources/app_icon_transparent.png" alt="MedChat Logo" width="120" height="120">
 </p>
 
 <p align="center">
