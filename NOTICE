@@ -1,0 +1,77 @@
+MedChat - 第三方许可证声明
+======================================
+
+本项目使用以下开源组件，遵循各自的许可证协议：
+
+1. Qt 5.12.12
+   - 许可证：GNU Lesser General Public License v3 (LGPL v3)
+   - 版权：The Qt Company Ltd. and other contributors
+   - 官网：https://www.qt.io/
+   - 许可证文本：https://doc.qt.io/qt-5.12/lgpl.html
+
+2. SQLite
+   - 许可证：Public Domain
+   - 版权：D. Richard Hipp
+   - 官网：https://www.sqlite.org/
+   - 声明：本软件不使用任何专利保护，任何人可自由使用
+
+3. MinGW-w64
+   - 许可证：GNU General Public License v3 (GPL v3)
+   - 版权：MinGW-w64 Project
+   - 官网：http://mingw-w64.org/
+   - 注意：MinGW 是编译工具，其许可证不作用于编译产物
+
+4. OpenSSL (可选，用于网络功能)
+   - 许可证：Apache License 2.0 / OpenSSL License
+   - 版权：The OpenSSL Project
+   - 官网：https://www.openssl.org/
+
+Qt LGPL v3 合规说明
+======================================
+
+本项目使用 Qt 5.12.12 的开源版本，遵循 LGPL v3 许可证。
+
+合规措施：
+1. 本项目以动态链接方式使用 Qt 库（使用 Qt 提供的 DLL/so 文件）
+2. 用户可自由替换 Qt DLL 以使用修改版本的 Qt 库
+3. 本项目提供完整源代码，符合 LGPL v3 要求
+4. 本项目的许可证为 GNU GPL v3，与 Qt 的 LGPL v3 兼容
+
+Qt 版权声明
+======================================
+
+Qt is available under the GNU Lesser General Public License version 3.
+
+The Qt Toolkit is Copyright (C) 2018 The Qt Company Ltd. and other contributors.
+
+Contact: https://www.qt.io/licensing/
+
+SQLite 声明
+======================================
+
+**This software is in the public domain.**
+
+The authors disclaim copyright to this source code. In place of a legal notice, here is a blessing:
+
+May you do good and not evil.
+May you find forgiveness for yourself and forgive others.
+May you share freely, never taking more than you give.
+
+（本软件属于公共领域。作者放弃版权。愿您行善勿作恶，愿您宽恕自己与他人，愿您自由分享，永不索取多于给予。）
+
+源代码获取
+======================================
+
+本项目完整源代码可在以下地址获取：
+- GitHub: https://github.com/OneStepBeyond666/MedChat.git
+
+如需获取 Qt 5.12.12 源代码，请访问：
+- Qt 官方下载：https://www.qt.io/development/download-open-source
+- Qt 代码仓库：https://code.qt.io/
+
+联系信息
+======================================
+
+如需咨询许可证相关问题，请联系：
+- 邮箱：<18545860831@163.com>
+- GitHub Issues: https://github.com/OneStepBeyond666/MedChat/issues

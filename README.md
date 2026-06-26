@@ -275,9 +275,15 @@ MedChat 使用自定义二进制协议：
 
 ---
 
-## 📄 协议
+## 📄 许可证
 
-本项目为开源项目，欢迎自由使用和分发。
+本项目采用 **GNU General Public License v3 (GPL v3)** 开源协议。
+
+- 许可证文本：[LICENSE](LICENSE)
+- 第三方许可证声明：[NOTICE](NOTICE)
+- Qt 组件遵循 LGPL v3（详见 [NOTICE](NOTICE)）
+
+© 2026 OneStepBeyond. 保留所有权利。
 
 ---
 
