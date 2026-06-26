@@ -124,6 +124,22 @@ void ServerDB::createTables()
     if (!ok) qCritical() << "[ServerDB] 创建 offline_messages 表失败:" << q.lastError().text();
 
     // =========================================================
+    // server_files 表（离线文件资源池索引）
+    // =========================================================
+    ok = q.exec(
+        "CREATE TABLE IF NOT EXISTS server_files ("
+        "  file_id       TEXT PRIMARY KEY,"
+        "  file_name     TEXT    NOT NULL,"
+        "  file_size     INTEGER NOT NULL,"
+        "  md5           TEXT    NOT NULL,"
+        "  storage_path  TEXT    NOT NULL,"
+        "  status        INTEGER NOT NULL DEFAULT 0,"  // 0=接收中, 1=已完成
+        "  created_at    INTEGER NOT NULL"
+        ")"
+    );
+    if (!ok) qCritical() << "[ServerDB] 创建 server_files 表失败:" << q.lastError().text();
+
+    // =========================================================
     // friend_requests 表
     // =========================================================
     ok = q.exec(
@@ -656,4 +672,108 @@ bool ServerDB::changePassword(int uid, const QString &oldPasswordHash, const QSt
         return false;
     }
     return q.numRowsAffected() > 0;
+}
+
+// ============================================================
+// server_files 表（离线文件资源池索引）
+// ============================================================
+
+bool ServerDB::insertServerFile(const QString &fileId, const QString &fileName,
+                                 qint64 fileSize, const QString &md5,
+                                 const QString &storagePath, qint64 createdAt)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+    q.prepare(
+        "INSERT INTO server_files (file_id, file_name, file_size, md5, storage_path, status, created_at) "
+        "VALUES (:id, :name, :size, :md5, :path, 0, :ts)"
+    );
+    q.bindValue(":id", fileId);
+    q.bindValue(":name", fileName);
+    q.bindValue(":size", fileSize);
+    q.bindValue(":md5", md5);
+    q.bindValue(":path", storagePath);
+    q.bindValue(":ts", createdAt);
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] insertServerFile 失败:" << q.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+bool ServerDB::updateServerFileStatus(const QString &fileId, int status,
+                                      const QString &finalStoragePath)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+    q.prepare(
+        "UPDATE server_files SET status = :status, storage_path = :path "
+        "WHERE file_id = :id"
+    );
+    q.bindValue(":status", status);
+    q.bindValue(":path", finalStoragePath);
+    q.bindValue(":id", fileId);
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] updateServerFileStatus 失败:" << q.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+QJsonObject ServerDB::getServerFile(const QString &fileId)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+    q.prepare("SELECT file_name, file_size, md5, storage_path, status, created_at "
+              "FROM server_files WHERE file_id = :id");
+    q.bindValue(":id", fileId);
+    if (q.exec() && q.next()) {
+        QJsonObject obj;
+        obj["file_id"]      = fileId;
+        obj["file_name"]    = q.value("file_name").toString();
+        obj["file_size"]    = static_cast<qint64>(q.value("file_size").toDouble());
+        obj["md5"]          = q.value("md5").toString();
+        obj["storage_path"] = q.value("storage_path").toString();
+        obj["status"]       = q.value("status").toInt();
+        obj["created_at"]   = static_cast<qint64>(q.value("created_at").toDouble());
+        return obj;
+    }
+    return QJsonObject();
+}
+
+bool ServerDB::deleteServerFile(const QString &fileId)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QSqlQuery q(db);
+    q.prepare("DELETE FROM server_files WHERE file_id = :id");
+    q.bindValue(":id", fileId);
+    if (!q.exec()) {
+        qWarning() << "[ServerDB] deleteServerFile 失败:" << q.lastError().text();
+        return false;
+    }
+    return q.numRowsAffected() > 0;
+}
+
+QJsonArray ServerDB::getExpiredFiles(int expireDays)
+{
+    QSqlDatabase db = QSqlDatabase::database(m_connName);
+    QJsonArray result;
+    qint64 now = QDateTime::currentMSecsSinceEpoch() / 1000;
+    qint64 threshold = now - (expireDays * 86400);
+
+    QSqlQuery q(db);
+    q.prepare("SELECT file_id, storage_path FROM server_files "
+              "WHERE created_at < :threshold");
+    q.bindValue(":threshold", threshold);
+    if (q.exec()) {
+        while (q.next()) {
+            QJsonObject obj;
+            obj["file_id"]      = q.value("file_id").toString();
+            obj["storage_path"] = q.value("storage_path").toString();
+            result.append(obj);
+        }
+    } else {
+        qWarning() << "[ServerDB] getExpiredFiles 失败:" << q.lastError().text();
+    }
+    return result;
 }

@@ -45,6 +45,39 @@ public:
     /// 离线消息：撤回时删除指定消息（按发送者、接收者、时间戳匹配）
     bool deleteOfflineMessageByTimestamp(int senderUid, int receiverUid, qint64 timestamp);
 
+    // ============================================================
+    // server_files 表（离线文件资源池索引）
+    // ============================================================
+
+    /// 文件记录结构体
+    struct ServerFileRecord {
+        QString fileId;
+        QString fileName;
+        qint64 fileSize;
+        QString md5;
+        QString storagePath;  // 相对路径，如 "2026/06/uuid.dat"
+        int status;           // 0=接收中(.tmp), 1=已完成(.dat)
+        qint64 createdAt;    // 秒级时间戳
+    };
+
+    /// 插入文件记录（status=0，接收中）
+    bool insertServerFile(const QString &fileId, const QString &fileName,
+                        qint64 fileSize, const QString &md5,
+                        const QString &storagePath, qint64 createdAt);
+
+    /// 更新文件状态（接收完成后调用，status=1，路径从 .tmp 改为 .dat）
+    bool updateServerFileStatus(const QString &fileId, int status,
+                               const QString &finalStoragePath);
+
+    /// 查询文件记录，不存在返回空 QJsonObject
+    QJsonObject getServerFile(const QString &fileId);
+
+    /// 删除文件记录（同时由调用方删除物理文件）
+    bool deleteServerFile(const QString &fileId);
+
+    /// 查询超过 expireDays 天未下载的文件记录
+    QJsonArray getExpiredFiles(int expireDays);
+
     // ---- friend_requests ----
     /// 添加好友请求，返回请求 ID（-1 表示已有待处理请求）
     int  addFriendRequest(int fromUid, int toUid, const QString &message);

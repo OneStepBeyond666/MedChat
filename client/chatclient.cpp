@@ -9,6 +9,7 @@
 #include <QDate>
 #include <QUuid>
 #include <QNetworkProxy>
+#include <QTimer>
 
 ChatClient::ChatClient(QObject *parent)
     : QObject(parent)
@@ -375,6 +376,14 @@ void ChatClient::handleFileOffer(const QJsonObject &msg)
     QString fileName = msg["file_name"].toString();
     qint64 fileSize = static_cast<qint64>(msg["file_size"].toDouble());
     QString fileId = msg["file_id"].toString();
+
+    // 离线文件自动接受（延迟 500ms 确保 UI 先渲染气泡）
+    if (msg.contains("is_offline") && msg["is_offline"].toBool()) {
+        qDebug() << "[Client] 收到离线文件 offer，自动接受:" << fileId;
+        QTimer::singleShot(500, this, [this, fileId] {
+            acceptFile(fileId);
+        });
+    }
 
     // 接收端 100MB 限制校验
     if (fileSize > Constants::MAX_FILE_SIZE) {

@@ -10,6 +10,10 @@
 #include <QDateTime>
 #include <QSet>
 #include <QSqlQuery>
+#include <QFile>
+#include <QCryptographicHash>
+#include <QUuid>
+#include <QDir>
 
 ChatServer::ChatServer(quint16 port, QObject *parent)
     : QObject(parent), m_port(port)
@@ -24,6 +28,11 @@ ChatServer::ChatServer(quint16 port, QObject *parent)
     m_userManager = new UserManager(m_serverDB, this);
 
     connect(m_tcpServer, &QTcpServer::newConnection, this, &ChatServer::onNewConnection);
+
+    // 定时清理过期离线文件（每小时触发一次）
+    m_cleanupTimer = new QTimer(this);
+    connect(m_cleanupTimer, &QTimer::timeout, this, &ChatServer::cleanupExpiredFiles);
+    m_cleanupTimer->start(3600000);  // 1 hour
 }
 
 ChatServer::~ChatServer()
@@ -114,6 +123,23 @@ void ChatServer::onClientDisconnected(ClientHandler *handler)
     handler->deleteLater();
     if (!username.isEmpty()) {
         qDebug() << QString("[下线] %1 (%2) 断开连接").arg(username, handler->role() == "doctor" ? "医生" : "患者");
+        
+        // 清理该用户未完成的离线文件接收状态
+        auto it = m_offlineReceives.begin();
+        while (it != m_offlineReceives.end()) {
+            if (it->senderUsername == username) {
+                if (it->file) {
+                    it->file->close();
+                    delete it->file;
+                    QFile::remove(it->tmpPath);
+                }
+                m_serverDB->deleteServerFile(it->fileId);
+                it = m_offlineReceives.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        
         broadcastOnlineStatus();
     } else {
         qDebug() << QString("[断开] 未登录客户端 IP=%1").arg(ip);
@@ -415,12 +441,81 @@ void ChatServer::handleFileOffer(ClientHandler *handler, const QJsonObject &msg)
 
     ClientHandler *target = findClient(to);
     if (!target) {
-        // 目标不在线，不缓存文件，直接返回错误
-        qDebug() << QString("[文件离线] %1 -> %2 : 接收方不在线，暂不支持发送离线文件 (文件: %3)")
-                        .arg(from, to, fileName);
-        handler->sendMessage(Protocol::makeError("对方不在线，暂不支持发送离线文件"));
+        // 接收方不在线，尝试缓存离线文件
+        if (fileSize > Constants::OFFLINE_FILE_MAX_SIZE) {
+            qDebug() << QString("[文件离线] %1 -> %2 : 文件超过10MB，拒绝离线发送 (文件: %3, size=%4)")
+                            .arg(from, to, fileName).arg(fileSize);
+            handler->sendMessage(Protocol::makeError("对方不在线，文件超过10MB无法离线发送"));
+            return;
+        }
+
+        // 生成 file_id 和存储路径
+        QString fileId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        QDate today = QDate::currentDate();
+        QString ym = QString("%1/%2").arg(today.year()).arg(today.month(), 2, 10, QChar('0'));
+        QString dbDir = QCoreApplication::applicationDirPath() + "/" + Constants::DB_FOLDER_NAME;
+        QString serverFilesDir = dbDir + "/server_files";
+        QDir().mkpath(serverFilesDir + "/" + ym);
+        QString tmpPath = serverFilesDir + "/" + ym + "/" + fileId + ".tmp";
+        QString relativePath = ym + "/" + fileId + ".dat";  // 最终路径（完成后重命名）
+        qint64 nowSec = QDateTime::currentMSecsSinceEpoch() / 1000;
+
+        // 写入 server_files 表（status=0 接收中）
+        if (!m_serverDB->insertServerFile(fileId, fileName, fileSize, "", relativePath, nowSec)) {
+            handler->sendMessage(Protocol::makeError("服务端文件索引创建失败"));
+            return;
+        }
+
+        // 创建临时文件
+        QFile *tmpFile = new QFile(tmpPath);
+        if (!tmpFile->open(QIODevice::WriteOnly)) {
+            delete tmpFile;
+            m_serverDB->deleteServerFile(fileId);
+            handler->sendMessage(Protocol::makeError("服务端无法创建临时文件"));
+            return;
+        }
+
+        // 追踪接收状态
+        OfflineFileRecvState state;
+        state.fileId = fileId;
+        state.senderUsername = from;
+        state.tmpPath = tmpPath;
+        state.finalRelativePath = relativePath;
+        state.fileSize = fileSize;
+        state.receivedBytes = 0;
+        state.md5Expected = "";
+        state.file = tmpFile;
+        m_offlineReceives[fileId] = state;
+
+        // 构造离线消息 payload（完整 file_offer，标记 is_offline）
+        QJsonObject offlineOffer = msg;
+        offlineOffer["from"] = from;
+        offlineOffer["file_id"] = fileId;
+        offlineOffer["is_offline"] = true;
+        // 去掉 from 字段（如果客户端不需要）
+        QJsonDocument doc(offlineOffer);
+        QString payload = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+
+        // 存入 offline_messages（type=3 文件）
+        if (!m_serverDB->saveOfflineMessage(fromUid, toUid, payload, 3, nowSec * 1000)) {
+            tmpFile->close();
+            delete tmpFile;
+            m_serverDB->deleteServerFile(fileId);
+            QFile::remove(tmpPath);
+            handler->sendMessage(Protocol::makeError("离线消息存储失败"));
+            return;
+        }
+
+        // 回复 file_accept 给发送方
+        QJsonObject accept = Protocol::makeFileAccept(from, to, fileId);
+        handler->sendMessage(accept);
+
+        qDebug() << QString("[文件离线] %1 -> %2 : 开始缓存离线文件 (文件: %3, file_id=%4)")
+                        .arg(from, to, fileName, fileId);
         return;
     }
+
+    // 接收方在线，直接转发
     QJsonObject fwd = msg;
     fwd["from"] = from;
     target->sendMessage(fwd);
@@ -430,6 +525,48 @@ void ChatServer::handleFileOffer(ClientHandler *handler, const QJsonObject &msg)
 
 void ChatServer::handleFileAccept(ClientHandler *handler, const QJsonObject &msg)
 {
+    QString fileId = msg["file_id"].toString();
+
+    // 检查是否是离线文件的接受（服务端需要虚拟发送）
+    QJsonObject fileRecord = m_serverDB->getServerFile(fileId);
+    if (!fileRecord.isEmpty() && fileRecord["status"].toInt() == 1) {
+        // 服务端虚拟发送文件给接收方（handler 就是接收方）
+        QString relativePath = fileRecord["storage_path"].toString();
+        QString dbDir = QCoreApplication::applicationDirPath() + "/" + Constants::DB_FOLDER_NAME;
+        QString datPath = dbDir + "/server_files/" + relativePath;
+        QFile file(datPath);
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning() << "[文件离线] 无法打开文件:" << datPath;
+            QJsonObject rej = Protocol::makeFileReject(handler->username(),
+                                                                 msg["from"].toString(), fileId, "file_expired");
+            handler->sendMessage(rej);
+            return;
+        }
+
+        // 发送 file_data 分块
+        QCryptographicHash hash(QCryptographicHash::Md5);
+        const int chunkSize = Constants::FILE_CHUNK_SIZE;
+        int seq = 0;
+        while (!file.atEnd()) {
+            QByteArray chunk = file.read(chunkSize);
+            hash.addData(chunk);
+            QJsonObject dataMsg = Protocol::makeFileData(fileId, chunk, seq++);
+            dataMsg["to"] = handler->username();
+            handler->sendMessage(dataMsg);
+        }
+        file.close();
+
+        // 发送 file_end
+        QString md5 = QString::fromLatin1(hash.result().toHex());
+        QJsonObject endMsg = Protocol::makeFileEnd(fileId, md5);
+        endMsg["to"] = handler->username();
+        handler->sendMessage(endMsg);
+
+        qDebug() << "[文件离线] 虚拟发送完成:" << fileId << "to" << handler->username();
+        return;
+    }
+
+    // 在线文件传输，直接转发
     QString to = msg["to"].toString();
     ClientHandler *target = findClient(to);
     if (target) {
@@ -443,8 +580,31 @@ void ChatServer::handleFileAccept(ClientHandler *handler, const QJsonObject &msg
 
 void ChatServer::handleFileData(ClientHandler *handler, const QJsonObject &msg)
 {
-    // file_data 需要转发给接收方，通过 file_id 查找接收方
-    // 这里简单处理：file_data 中包含 to 字段
+    QString fileId = msg["file_id"].toString();
+
+    // 检查是否正在接收离线文件（服务端缓存中）
+    auto it = m_offlineReceives.find(fileId);
+    if (it != m_offlineReceives.end()) {
+        // 写入临时文件
+        QString b64 = msg["data"].toString();
+        QByteArray chunk = QByteArray::fromBase64(b64.toLatin1());
+        if (it->file && it->file->isOpen()) {
+            it->file->write(chunk);
+            it->receivedBytes += chunk.size();
+            if (it->receivedBytes > it->fileSize) {
+                // 超限，取消接收
+                qWarning() << "[文件离线] 接收超限，取消:" << fileId;
+                it->file->close();
+                delete it->file;
+                QFile::remove(it->tmpPath);
+                m_serverDB->deleteServerFile(fileId);
+                m_offlineReceives.erase(it);
+            }
+        }
+        return;
+    }
+
+    // 在线文件传输，直接转发
     QString to = msg["to"].toString();
     ClientHandler *target = findClient(to);
     if (target) {
@@ -454,6 +614,59 @@ void ChatServer::handleFileData(ClientHandler *handler, const QJsonObject &msg)
 
 void ChatServer::handleFileEnd(ClientHandler *handler, const QJsonObject &msg)
 {
+    QString fileId = msg["file_id"].toString();
+    QString md5 = msg["md5"].toString();
+
+    auto it = m_offlineReceives.find(fileId);
+    if (it != m_offlineReceives.end()) {
+        if (it->file) {
+            it->file->close();
+
+            // 校验 MD5
+            QFile tmpFile(it->tmpPath);
+            if (tmpFile.open(QIODevice::ReadOnly)) {
+                QCryptographicHash hash(QCryptographicHash::Md5);
+                hash.addData(&tmpFile);
+                QString actualMd5 = QString::fromLatin1(hash.result().toHex());
+                tmpFile.close();
+
+                if (!md5.isEmpty() && actualMd5 != md5) {
+                    delete it->file;
+                    QFile::remove(it->tmpPath);
+                    m_serverDB->deleteServerFile(fileId);
+                    m_offlineReceives.erase(it);
+                    QJsonObject rej = Protocol::makeFileReject(handler->username(),
+                                                                 it->senderUsername, fileId, "md5_mismatch");
+                    handler->sendMessage(rej);
+                    qWarning() << "[文件离线] MD5 校验失败:" << fileId;
+                    return;
+                }
+
+                // MD5 通过，重命名 .tmp 为 .dat
+                QString datPath = it->tmpPath;
+                datPath.replace(".tmp", ".dat");
+                if (QFile::rename(it->tmpPath, datPath)) {
+                    // 更新 server_files 状态（status=1，路径不变）
+                    m_serverDB->updateServerFileStatus(fileId, 1, it->finalRelativePath);
+                    qDebug() << "[文件离线] 接收完成:" << fileId
+                             << "path=" << it->finalRelativePath;
+                } else {
+                    qWarning() << "[文件离线] 重命名失败:" << it->tmpPath;
+                }
+            } else {
+                delete it->file;
+                QFile::remove(it->tmpPath);
+                m_serverDB->deleteServerFile(fileId);
+                m_offlineReceives.erase(it);
+                return;
+            }
+            delete it->file;
+        }
+        m_offlineReceives.erase(it);
+        return;
+    }
+
+    // 在线文件传输，直接转发
     QString to = msg["to"].toString();
     ClientHandler *target = findClient(to);
     if (target) {
@@ -980,4 +1193,41 @@ void ChatServer::handleChangePassword(ClientHandler *handler, const QJsonObject 
     } else {
         handler->sendMessage(Protocol::makeChangePasswordRes(false, "旧密码错误或修改失败"));
     }
+}
+
+void ChatServer::cleanupExpiredFiles()
+{
+    QJsonArray expired = m_serverDB->getExpiredFiles(Constants::OFFLINE_FILE_EXPIRE_DAYS);
+    if (expired.isEmpty())
+        return;
+
+    QString dbDir = QCoreApplication::applicationDirPath() + "/" + Constants::DB_FOLDER_NAME;
+    int cleaned = 0;
+
+    for (const QJsonValue &val : expired) {
+        QJsonObject obj = val.toObject();
+        QString fileId = obj["file_id"].toString();
+        QString relativePath = obj["storage_path"].toString();
+        QString fullPath = dbDir + "/server_files/" + relativePath;
+
+        // 删除物理文件
+        if (QFile::exists(fullPath)) {
+            if (QFile::remove(fullPath))
+                cleaned++;
+            else
+                qWarning() << "[清理] 删除文件失败:" << fullPath;
+        }
+
+        // 删除 DB 记录
+        m_serverDB->deleteServerFile(fileId);
+
+        // 删除 offline_messages 中对应的记录
+        QSqlDatabase db = m_serverDB->database();
+        QSqlQuery q(db);
+        q.prepare("DELETE FROM offline_messages WHERE payload LIKE :fid AND type = 3");
+        q.bindValue(":fid", "%" + fileId + "%");
+        q.exec();
+    }
+
+    qDebug() << QString("[清理] 过期离线文件清理完成: 删除 %1 个文件").arg(cleaned);
 }

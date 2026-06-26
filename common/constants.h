@@ -15,8 +15,10 @@ constexpr int DEFAULT_PORT          = 9527;      // 默认监听端口
 constexpr int MAX_FRAME_SIZE        = 104857600; // 单帧上限 100 MB
 
 // --- 文件传输 ---
-constexpr qint64 MAX_FILE_SIZE      = 104857600; // 100 MB 文件传输上限
-constexpr int FILE_CHUNK_SIZE       = 65536;     // 64 KB 分块大小
+constexpr qint64 MAX_FILE_SIZE         = 104857600; // 100 MB 文件传输上限
+constexpr qint64 OFFLINE_FILE_MAX_SIZE = 10485760;  // 10 MB 离线文件上限
+constexpr int FILE_CHUNK_SIZE          = 65536;     // 64 KB 分块大小
+constexpr int OFFLINE_FILE_EXPIRE_DAYS = 7;        // 离线文件过期天数
 
 // --- 头像 ---
 constexpr qint64 AVATAR_MAX_SIZE    = 2097152;   // 头像上传限制 2 MB
