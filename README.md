@@ -12,7 +12,7 @@
   <a href="https://github.com/OneStepBeyond666/MedChat/releases"><img src="https://img.shields.io/badge/version-v0.8.6-blue?style=flat-square" alt="version"></a>
   <a href="https://www.qt.io/"><img src="https://img.shields.io/badge/Qt-5.12.12-green?style=flat-square" alt="Qt"></a>
   <a href="https://en.cppreference.com/w/cpp/14"><img src="https://img.shields.io/badge/C++-14-orange?style=flat-square" alt="C++14"></a>
-  <a href="https://github.com/OneStepBeyond666/MedChat/blob/main/LICENSE"><img src="https://img.shields.io/github/license/OneStepBeyond666/MedChat?style=flat-square" alt="license"></a>
+  <a href="https://github.com/OneStepBeyond666/MedChat/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL%20v3-blue?style=flat-square" alt="license"></a>
   <a href="https://github.com/OneStepBeyond666/MedChat"><img src="https://img.shields.io/github/stars/OneStepBeyond666/MedChat?style=flat-square&color=yellow" alt="stars"></a>
 </p>
 
