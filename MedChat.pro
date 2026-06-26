@@ -30,7 +30,7 @@ SOURCES += \
     ui/sessionlistwidget.cpp \
     ui/friendrequestwidget.cpp \
     ui/friendrequestnotification.cpp \
-    ui/nearpeoplewidget.cpp \
+    ui/nearbypeoplewidget.cpp \
     ui/forgotpassworddialog.cpp \
     ui/changepassworddialog.cpp \
     ui/forwarddialog.cpp \
@@ -57,7 +57,7 @@ HEADERS += \
     ui/sessionlistwidget.h \
     ui/friendrequestwidget.h \
     ui/friendrequestnotification.h \
-    ui/nearpeoplewidget.h \
+    ui/nearbypeoplewidget.h \
     ui/forgotpassworddialog.h \
     ui/changepassworddialog.h \
     ui/forwarddialog.h \
@@ -67,4 +67,4 @@ RESOURCES += \
     resources/style.qrc
 
 # Windows 应用程序图标
-RC_FILE = resources/appicon.rc
+RC_ICONS = resources/app_icon.ico
