@@ -80,6 +80,37 @@ MedChat 是一款面向医疗场景的局域网即时通讯系统，采用 **C/S
 
 ---
 
+## 📸 截图展示
+
+<table>
+<tr>
+<td align="center"><strong>🔐 登录界面</strong></td>
+<td align="center"><strong>📝 注册界面</strong></td>
+</tr>
+<tr>
+<td><img src="resources/screenshots/login.png" width="400"></td>
+<td><img src="resources/screenshots/register.png" width="400"></td>
+</tr>
+<tr>
+<td align="center"><strong>💬 聊天界面</strong></td>
+<td align="center"><strong>📋 通讯录</strong></td>
+</tr>
+<tr>
+<td><img src="resources/screenshots/chat.png" width="400"></td>
+<td><img src="resources/screenshots/contacts.png" width="400"></td>
+</tr>
+<tr>
+<td align="center"><strong>👤 个人资料</strong></td>
+<td align="center"><strong>✨ 功能演示</strong></td>
+</tr>
+<tr>
+<td><img src="resources/screenshots/profile.png" width="400"></td>
+<td><img src="resources/screenshots/demo1.png" width="400"></td>
+</tr>
+</table>
+
+---
+
 ## 🚀 快速开始
 
 ### 运行（已构建版本）
