@@ -31,6 +31,9 @@ struct FileTransferInfo {
     QCryptographicHash *hash = nullptr;
     bool isSending = false;
     int nextSeq = 0;
+    // 离线文件相关
+    bool isOffline = false;
+    int expireDays = -1;  // -1 表示非离线文件
 };
 
 class ChatClient : public QObject
@@ -102,7 +105,8 @@ signals:
     void messageAck(const QString &to, qint64 timestamp);
     void messageRecalled(const QString &from, const QString &to, qint64 originalTimestamp);
 
-    void fileOfferReceived(const QString &from, const QString &fileName, qint64 fileSize, const QString &fileId);
+    void fileOfferReceived(const QString &from, const QString &fileName, qint64 fileSize,
+                            const QString &fileId, bool isOffline = false, int expireDays = -1);
     void fileAccepted(const QString &fileId);
     void fileRejected(const QString &fileId, const QString &reason);
     void fileProgress(const QString &fileId, qint64 receivedBytes, qint64 totalBytes);

@@ -257,9 +257,19 @@ void ChatServer::handleLogin(ClientHandler *handler, const QJsonObject &msg)
                                 .arg(username).arg(offlineMessages.size());
                 
                 // 遍历结果，通过 Socket 逐条将 payload 发送给客户端
+                qint64 nowSec = QDateTime::currentDateTime().toSecsSinceEpoch();
                 for (const QJsonValue &val : offlineMessages) {
                     if (val.isObject()) {
                         QJsonObject offlineMsg = val.toObject();
+                        
+                        // 如果是离线文件消息，计算剩余过期天数
+                        if (offlineMsg.contains("is_offline") && offlineMsg["is_offline"].toBool()) {
+                            qint64 createdAt = static_cast<qint64>(offlineMsg["created_at"].toDouble());
+                            int expireDays = qMax(0, Constants::OFFLINE_FILE_EXPIRE_DAYS -
+                                                 static_cast<int>((nowSec - createdAt) / 86400));
+                            offlineMsg["expire_days"] = expireDays;
+                        }
+                        
                         handler->sendMessage(offlineMsg);
                     }
                 }
@@ -492,7 +502,7 @@ void ChatServer::handleFileOffer(ClientHandler *handler, const QJsonObject &msg)
         offlineOffer["from"] = from;
         offlineOffer["file_id"] = fileId;
         offlineOffer["is_offline"] = true;
-        // 去掉 from 字段（如果客户端不需要）
+        offlineOffer["created_at"] = nowSec;  // 存下发送时间，下发时计算过期天数
         QJsonDocument doc(offlineOffer);
         QString payload = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
 

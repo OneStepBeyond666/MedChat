@@ -41,7 +41,8 @@ private slots:
     void onSendFileRequest(const QString &to);
     void onSendFileWithPath(const QString &to, const QString &filePath);
     void onFileOfferReceived(const QString &from, const QString &fileName,
-                              qint64 fileSize, const QString &fileId);
+                              qint64 fileSize, const QString &fileId,
+                              bool isOffline = false, int expireDays = -1);
     void onFileAccepted(const QString &fileId);
     void onFileRejected(const QString &fileId, const QString &reason);
     void onFileProgress(const QString &fileId, qint64 received, qint64 total);

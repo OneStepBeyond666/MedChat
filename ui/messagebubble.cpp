@@ -201,8 +201,9 @@ void MessageBubble::setRecalled(bool recalled, bool isMine)
 
 FileMessageCard::FileMessageCard(const QString &fileName, qint64 fileSize, bool isMine,
                                  const QString &senderName, const QString &timeStr,
+                                 bool isOffline, int expireDays,
                                  QWidget *parent)
-    : QWidget(parent)
+    : QWidget(parent), m_isOffline(isOffline), m_expireDays(expireDays)
 {
     setupUI(fileName, fileSize, isMine, senderName, timeStr);
     setContextMenuPolicy(Qt::CustomContextMenu);
@@ -245,6 +246,13 @@ void FileMessageCard::setupUI(const QString &fileName, qint64 fileSize, bool isM
     m_fileSizeLabel = new QLabel(formatSize(fileSize));
     m_fileSizeLabel->setStyleSheet("font-size: 11px; color: #999; border: none;");
     fileInfoLayout->addWidget(m_fileSizeLabel);
+
+    // 离线文件：显示过期天数
+    if (m_isOffline && m_expireDays >= 0) {
+        QLabel *expireLabel = new QLabel(QString("还有 %1 天过期").arg(m_expireDays));
+        expireLabel->setStyleSheet("font-size: 11px; color: #f57c00; border: none;");
+        fileInfoLayout->addWidget(expireLabel);
+    }
     fileRow->addLayout(fileInfoLayout);
     fileRow->addStretch();
     cardLayout->addLayout(fileRow);

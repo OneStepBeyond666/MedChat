@@ -57,6 +57,7 @@ public:
 
     explicit FileMessageCard(const QString &fileName, qint64 fileSize, bool isMine,
                              const QString &senderName, const QString &timeStr,
+                             bool isOffline = false, int expireDays = -1,
                              QWidget *parent = nullptr);
 
     void setProgress(qint64 received, qint64 total);
@@ -89,6 +90,8 @@ private:
     QPushButton *m_openBtn;
     State m_state = Pending;
     qint64 m_msgId = 0;
+    bool m_isOffline = false;
+    int m_expireDays = -1;
 };
 
 #endif // MESSAGEBUBBLE_H

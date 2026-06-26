@@ -650,7 +650,8 @@ void MainWindow::onFileSendCompleted(const QString &fileId)
 // ============================================================
 
 void MainWindow::onFileOfferReceived(const QString &from, const QString &fileName,
-                                      qint64 fileSize, const QString &fileId)
+                                      qint64 fileSize, const QString &fileId,
+                                      bool isOffline, int expireDays)
 {
     m_pendingFileOffers[fileId] = from;
 
@@ -685,9 +686,12 @@ void MainWindow::onFileOfferReceived(const QString &from, const QString &fileNam
 
     // 当前联系人 → 显示文件卡片；非当前 → 弹窗通知
     if (m_chatWidget->currentPartner() == from) {
-        m_chatWidget->addFileMessage(displayName(from), fileName, fileSize, fileId, false);
+        m_chatWidget->addFileMessage(displayName(from), fileName, fileSize, fileId, false, isOffline, expireDays);
     } else {
-        showMessage("文件接收", displayName(from) + " 向您发送文件: " + fileName);
+        QString notify = displayName(from) + " 向您发送文件: " + fileName;
+        if (isOffline && expireDays >= 0)
+            notify += QString(" (离线文件，还有 %1 天过期)").arg(expireDays);
+        showMessage("文件接收", notify);
     }
 }
 

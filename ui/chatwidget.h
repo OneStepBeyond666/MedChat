@@ -45,7 +45,7 @@ public:
     void addTextMessage(const QString &sender, const QString &text, qint64 timestamp, bool isMine);
     MessageBubble *addTextMessageWithId(const QString &sender, const QString &text, qint64 timestamp, bool isMine);
     void addFileMessage(const QString &sender, const QString &fileName, qint64 fileSize,
-                        const QString &fileId, bool isMine);
+                        const QString &fileId, bool isMine, bool isOffline = false, int expireDays = -1);
     void updateFileProgress(const QString &fileId, qint64 received, qint64 total);
     void setFileCompleted(const QString &fileId);
     void setFileTransferring(const QString &fileId);

@@ -381,7 +381,8 @@ MessageBubble *ChatWidget::addTextMessageWithId(const QString &sender, const QSt
 }
 
 void ChatWidget::addFileMessage(const QString &sender, const QString &fileName,
-                                 qint64 fileSize, const QString &fileId, bool isMine)
+                                 qint64 fileSize, const QString &fileId, bool isMine,
+                                 bool isOffline, int expireDays)
 {
     if (m_partner.isEmpty()) return;
 
@@ -397,7 +398,8 @@ void ChatWidget::addFileMessage(const QString &sender, const QString &fileName,
 
     int insertIndex = m_messageLayout->count() - 1;
     FileMessageCard *card = new FileMessageCard(fileName, fileSize, isMine,
-                                                 sender, formatTime(msg.timestamp));
+                                                 sender, formatTime(msg.timestamp),
+                                                 isOffline, expireDays);
     card->fileId = fileId;
     connect(card, &FileMessageCard::acceptClicked, this, &ChatWidget::onFileAcceptClicked);
     connect(card, &FileMessageCard::rejectClicked, this, &ChatWidget::onFileRejectClicked);
