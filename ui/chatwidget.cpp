@@ -571,17 +571,33 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
 
 void ChatWidget::removeMessageByMsgId(qint64 msgId)
 {
-    // 遍历 layout 找到对应的 MessageBubble
+    // 遍历 layout 找到对应的 MessageBubble 或 FileMessageCard
     for (int i = 0; i < m_messageLayout->count(); ++i) {
         QLayoutItem *item = m_messageLayout->itemAt(i);
         if (!item || !item->widget()) continue;
 
-        MessageBubble *bubble = qobject_cast<MessageBubble*>(item->widget());
+        QWidget *w = item->widget();
+        bool found = false;
+
+        // 检查 MessageBubble
+        MessageBubble *bubble = qobject_cast<MessageBubble*>(w);
         if (bubble && bubble->msgId() == msgId) {
-            // 从 layout 中移除
             m_messageLayout->removeWidget(bubble);
             bubble->deleteLater();
+            found = true;
+        }
 
+        // 检查 FileMessageCard
+        if (!found) {
+            FileMessageCard *card = qobject_cast<FileMessageCard*>(w);
+            if (card && card->msgId() == msgId) {
+                m_messageLayout->removeWidget(card);
+                card->deleteLater();
+                found = true;
+            }
+        }
+
+        if (found) {
             // 从 m_messages 列表中移除对应条目
             for (int j = 0; j < m_messages.size(); ++j) {
                 if (m_messages[j].msgId == msgId) {
