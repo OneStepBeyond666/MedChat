@@ -405,6 +405,10 @@ void ChatClient::handleFileOffer(const QJsonObject &msg)
     info.expireDays = expireDays;
     m_fileTransfers[fileId] = info;
 
+    qDebug() << "[ChatClient] 收到文件提议:" << from << "->" << m_username
+             << "file=" << fileName << "size=" << fileSize
+             << "isOffline=" << isOffline << "expireDays=" << expireDays;
+
     emit fileOfferReceived(from, fileName, fileSize, fileId, isOffline, expireDays);
 }
 
@@ -514,11 +518,25 @@ void ChatClient::handleFileEnd(const QJsonObject &msg)
     QString saveName = finalFi.fileName();
 
     // 移动文件
+    // 调试日志：检查移动前的状态
+    qDebug() << "[ChatClient] 准备移动文件:" << tmpPath << "->" << finalPath;
+    qDebug() << "  tmpPath exists:" << QFile::exists(tmpPath);
+    qDebug() << "  targetDir exists:" << QDir(targetDir).exists();
+    qDebug() << "  finalPath exists:" << QFile::exists(finalPath);
+
     if (!QFile::rename(tmpPath, finalPath)) {
         qWarning() << "[ChatClient] 文件移动失败:" << tmpPath << "->" << finalPath;
+        qWarning() << "  tmpPath exists:" << QFile::exists(tmpPath);
+        qWarning() << "  targetDir exists:" << QDir(targetDir).exists();
+        qWarning() << "  finalPath exists:" << QFile::exists(finalPath);
         // 回退：尝试复制+删除
-        QFile::copy(tmpPath, finalPath);
-        QFile::remove(tmpPath);
+        qDebug() << "[ChatClient] 尝试回退：复制+" << tmpPath << "->" << finalPath;
+        if (QFile::copy(tmpPath, finalPath)) {
+            qDebug() << "[ChatClient] 回退复制成功，删除临时文件:" << tmpPath;
+            QFile::remove(tmpPath);
+        } else {
+            qWarning() << "[ChatClient] 回退复制失败:" << tmpPath << "->" << finalPath;
+        }
     }
 
     // 计算实际 MD5（如果发送方未提供）
