@@ -79,12 +79,13 @@ QJsonObject Protocol::makeMessage(const QString &from, const QString &to, const 
     return obj;
 }
 
-QJsonObject Protocol::makeRecallMessage(const QString &from, const QString &to, qint64 originalTimestamp)
+QJsonObject Protocol::makeRecallMessage(const QString &from, const QString &to, qint64 originalTimestamp, int msgType)
 {
     QJsonObject obj = makeMsg(MsgType::RecallMessage);
     obj["from"] = from;
     obj["to"] = to;
     obj["original_timestamp"] = originalTimestamp;
+    obj["msg_type"] = msgType;  // 0=文本, 1=文件
     return obj;
 }
 

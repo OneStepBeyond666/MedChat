@@ -377,6 +377,7 @@ void ChatServer::handleRecallMessage(ClientHandler *handler, const QJsonObject &
     QString from = handler->username();
     QString to = msg["to"].toString();
     qint64 originalTimestamp = static_cast<qint64>(msg["original_timestamp"].toDouble());
+    int msgType = msg.contains("msg_type") ? msg["msg_type"].toInt() : 0;  // 0=文本, 1=文件
 
     // 验证发送者身份
     if (msg["from"].toString() != from) {
@@ -402,12 +403,36 @@ void ChatServer::handleRecallMessage(ClientHandler *handler, const QJsonObject &
         qDebug() << QString("[撤回] %1 -> %2 : 已转发撤回通知（接收方在线）")
                         .arg(from, to);
     } else {
-        // 接收方不在线，删除离线消息
+        // 接收方不在线，删除离线消息并清理文件资源
         int fromUid = m_userManager->getUidByUsername(from);
         int toUid = m_userManager->getUidByUsername(to);
         if (fromUid > 0 && toUid > 0) {
-            m_serverDB->deleteOfflineMessageByTimestamp(fromUid, toUid, originalTimestamp);
-            qDebug() << QString("[撤回] %1 -> %2 : 已删除离线消息（接收方不在线）")
+            QString associatedFileId = m_serverDB->deleteOfflineMessageByTimestamp(fromUid, toUid, originalTimestamp);
+            
+            // 如果撤回的是文件消息，清理 server_files 资源和物理文件
+            if (!associatedFileId.isEmpty() && msgType == 1) {
+                QJsonObject fileInfo = m_serverDB->getServerFile(associatedFileId);
+                if (!fileInfo.isEmpty()) {
+                    QString relativePath = fileInfo["storage_path"].toString();
+                    QString dbDir = QCoreApplication::applicationDirPath() + "/" + Constants::DB_FOLDER_NAME;
+                    QString fullPath = dbDir + "/server_files/" + relativePath;
+                    
+                    // 删除物理文件
+                    if (QFile::exists(fullPath)) {
+                        if (QFile::remove(fullPath)) {
+                            qDebug() << "[撤回] 已删除物理文件:" << fullPath;
+                        } else {
+                            qWarning() << "[撤回] 删除物理文件失败:" << fullPath;
+                        }
+                    }
+                    
+                    // 删除 server_files 记录
+                    m_serverDB->deleteServerFile(associatedFileId);
+                    qDebug() << "[撤回] 已清理文件资源:" << associatedFileId;
+                }
+            }
+            
+            qDebug() << QString("[撤回] %1 -> %2 : 已删除离线消息并清理资源（接收方不在线）")
                             .arg(from, to);
         }
     }

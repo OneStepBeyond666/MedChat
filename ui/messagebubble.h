@@ -24,7 +24,7 @@ public:
 
 signals:
     void deleteRequested(qint64 msgId);
-    void recallRequested(qint64 msgId, qint64 timestamp);
+    void recallRequested(qint64 msgId, qint64 timestamp, int msgType);
     void forwardRequested(int msgType, const QString &content, const QString &fileId);
 
 private slots:
@@ -65,6 +65,9 @@ public:
     QString fileId; // 用于外部关联
     void setMsgId(qint64 id) { m_msgId = id; }
     qint64 msgId() const { return m_msgId; }
+    bool isRecalled() const { return m_isRecalled; }
+    void setTimestamp(qint64 ts) { m_timestamp = ts; }
+    void setRecalled(bool recalled, bool isMine);
 
 signals:
     void acceptClicked();
@@ -72,13 +75,15 @@ signals:
     void openClicked();
     void forwardRequested(int msgType, const QString &content, const QString &fileId);
     void deleteRequested(qint64 msgId);
+    void recallRequested(qint64 msgId, qint64 timestamp, int msgType);
 
 private slots:
     void showContextMenu(const QPoint &pos);
 
 private:
     void setupUI(const QString &fileName, qint64 fileSize, bool isMine,
-                 const QString &senderName, const QString &timeStr);
+                 const QString &senderName, const QString &timeStr,
+                 bool isOffline = false, int expireDays = 0);
     static QString formatSize(qint64 bytes);
 
     QLabel *m_fileNameLabel;
@@ -92,6 +97,9 @@ private:
     qint64 m_msgId = 0;
     bool m_isOffline = false;
     int m_expireDays = -1;
+    qint64 m_timestamp = 0;
+    bool m_isMine = false;
+    bool m_isRecalled = false;
 };
 
 #endif // MESSAGEBUBBLE_H

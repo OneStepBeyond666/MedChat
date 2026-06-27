@@ -43,7 +43,8 @@ public:
     bool deleteAckedOfflineMessages(int receiverUid);
 
     /// 离线消息：撤回时删除指定消息（按发送者、接收者、时间戳匹配）
-    bool deleteOfflineMessageByTimestamp(int senderUid, int receiverUid, qint64 timestamp);
+    /// 返回关联的 file_id（如果是文件消息），否则返回空字符串
+    QString deleteOfflineMessageByTimestamp(int senderUid, int receiverUid, qint64 timestamp);
 
     // ============================================================
     // server_files 表（离线文件资源池索引）

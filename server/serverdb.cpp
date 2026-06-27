@@ -407,33 +407,66 @@ bool ServerDB::deleteAckedOfflineMessages(int receiverUid)
     return true;
 }
 
-bool ServerDB::deleteOfflineMessageByTimestamp(int senderUid, int receiverUid, qint64 timestamp)
+QString ServerDB::deleteOfflineMessageByTimestamp(int senderUid, int receiverUid, qint64 timestamp)
 {
     QSqlDatabase db = QSqlDatabase::database(m_connName);
-    QSqlQuery q(db);
-    q.prepare(
+    
+    // 先查询，检查是否是文件消息，获取 file_id
+    QSqlQuery selectQ(db);
+    selectQ.prepare(
+        "SELECT type, payload FROM offline_messages "
+        "WHERE sender_uid = :sender AND receiver_uid = :receiver AND timestamp = :ts"
+    );
+    selectQ.bindValue(":sender", senderUid);
+    selectQ.bindValue(":receiver", receiverUid);
+    selectQ.bindValue(":ts", timestamp);
+    
+    QString associatedFileId;
+    if (selectQ.exec() && selectQ.next()) {
+        int msgType = selectQ.value(0).toInt();
+        if (msgType == 3) {  // 文件消息
+            QString payload = selectQ.value(1).toString();
+            QJsonParseError parseError;
+            QJsonDocument doc = QJsonDocument::fromJson(payload.toUtf8(), &parseError);
+            if (parseError.error == QJsonParseError::NoError && doc.isObject()) {
+                QJsonObject obj = doc.object();
+                if (obj.contains("file_id")) {
+                    associatedFileId = obj["file_id"].toString();
+                }
+            }
+        }
+    } else {
+        qWarning() << "[ServerDB] 撤回查询离线消息失败(匹配0行): sender=" << senderUid
+                   << "receiver=" << receiverUid << "target_ts=" << timestamp;
+        return QString();
+    }
+    
+    // 删除离线消息
+    QSqlQuery delQ(db);
+    delQ.prepare(
         "DELETE FROM offline_messages "
         "WHERE sender_uid = :sender AND receiver_uid = :receiver AND timestamp = :ts"
     );
-    q.bindValue(":sender", senderUid);
-    q.bindValue(":receiver", receiverUid);
-    q.bindValue(":ts", timestamp);
-
-    if (!q.exec()) {
-        qWarning() << "[ServerDB] 撤回删除离线消息失败:" << q.lastError().text();
-        return false;
+    delQ.bindValue(":sender", senderUid);
+    delQ.bindValue(":receiver", receiverUid);
+    delQ.bindValue(":ts", timestamp);
+    
+    if (!delQ.exec()) {
+        qWarning() << "[ServerDB] 撤回删除离线消息失败:" << delQ.lastError().text();
+        return QString();
     }
-
-    int deleted = q.numRowsAffected();
+    
+    int deleted = delQ.numRowsAffected();
     if (deleted > 0) {
         qDebug() << "[ServerDB] 撤回删除离线消息成功: sender=" << senderUid
-                 << "receiver=" << receiverUid << "deleted=" << deleted;
+                 << "receiver=" << receiverUid << "deleted=" << deleted
+                 << "file_id=" << associatedFileId;
     } else {
-        // 【核心修复】：没删掉数据时，打印警告，暴露时间戳不匹配的问题
         qWarning() << "[ServerDB] 撤回删除离线消息失败(匹配0行): sender=" << senderUid
                    << "receiver=" << receiverUid << "target_ts=" << timestamp;
     }
-    return deleted > 0;  // 返回是否真正删除了数据
+    
+    return associatedFileId;  // 返回关联的文件ID（如果是文件消息），否则返回空字符串
 }
 
 // =========================================================

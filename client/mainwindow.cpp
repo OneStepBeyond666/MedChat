@@ -975,14 +975,14 @@ void MainWindow::onMessageDeleteRequested(qint64 msgId)
     m_chatWidget->removeMessageByMsgId(msgId);
 }
 
-void MainWindow::onMessageRecallRequested(qint64 msgId, qint64 timestamp)
+void MainWindow::onMessageRecallRequested(qint64 msgId, qint64 timestamp, int msgType)
 {
     Q_UNUSED(timestamp)
     QString partner = m_chatWidget->currentPartner();
     if (partner.isEmpty()) return;
 
-    // 1. 发送撤回请求到服务端
-    m_client->sendRecallMessage(partner, timestamp);
+    // 1. 发送撤回请求到服务端（带 msgType 参数）
+    m_client->sendRecallMessage(partner, timestamp, msgType);
 
     // 2. 乐观更新：立即标记本地 DB 为已撤回
     LocalDB::instance().markMessageRecalled(msgId, true);
@@ -994,7 +994,7 @@ void MainWindow::onMessageRecallRequested(qint64 msgId, qint64 timestamp)
     updateSession(partner, QStringLiteral("[你撤回了一条消息]"), QDateTime::currentMSecsSinceEpoch());
 }
 
-void MainWindow::onMessageRecalled(const QString &from, const QString &to, qint64 originalTimestamp)
+void MainWindow::onMessageRecalled(const QString &from, const QString &to, qint64 originalTimestamp, int msgType)
 {
     QString partner = (from == m_username) ? to : from;
     bool isMine = (from == m_username);
@@ -1013,7 +1013,7 @@ void MainWindow::onMessageRecalled(const QString &from, const QString &to, qint6
     }
 
     // 更新会话预览（无论是否正在查看该对话）
-    updateSession(partner, QStringLiteral("[撤回了一条消息]"), QDateTime::currentMSecsSinceEpoch());
+    updateSession(partner, QStringLiteral("[对方撤回了一条消息]"), QDateTime::currentMSecsSinceEpoch());
 }
 
 void MainWindow::onForwardMessage(int msgType, const QString &content, const QString &fileId)

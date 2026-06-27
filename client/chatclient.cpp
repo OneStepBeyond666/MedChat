@@ -83,9 +83,9 @@ void ChatClient::sendTextMessage(const QString &to, const QString &text)
     sendJson(obj);
 }
 
-void ChatClient::sendRecallMessage(const QString &to, qint64 originalTimestamp)
+void ChatClient::sendRecallMessage(const QString &to, qint64 originalTimestamp, int msgType)
 {
-    QJsonObject obj = Protocol::makeRecallMessage(m_username, to, originalTimestamp);
+    QJsonObject obj = Protocol::makeRecallMessage(m_username, to, originalTimestamp, msgType);
     sendJson(obj);
 }
 
@@ -354,6 +354,7 @@ void ChatClient::handleRecallMessage(const QJsonObject &msg)
     QString from = msg["from"].toString();
     QString to = msg["to"].toString();
     qint64 originalTimestamp = static_cast<qint64>(msg["original_timestamp"].toDouble());
+    int msgType = msg.contains("msg_type") ? msg["msg_type"].toInt() : 0;  // 0=文本, 1=文件
 
     // 判断是自己撤回的还是对方撤回的
     bool isMine = (from == m_username);
@@ -368,7 +369,7 @@ void ChatClient::handleRecallMessage(const QJsonObject &msg)
         }
     }
 
-    emit messageRecalled(from, to, originalTimestamp);
+    emit messageRecalled(from, to, originalTimestamp, msgType);
 }
 
 void ChatClient::handleFileOffer(const QJsonObject &msg)

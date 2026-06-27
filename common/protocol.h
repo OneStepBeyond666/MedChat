@@ -80,7 +80,7 @@ public:
     static QJsonObject makeError(const QString &text);
     static QJsonObject makeAuthResult(bool success, const QString &msg, const QString &role = QString());
     static QJsonObject makeMessage(const QString &from, const QString &to, const QString &text);
-    static QJsonObject makeRecallMessage(const QString &from, const QString &to, qint64 originalTimestamp);
+    static QJsonObject makeRecallMessage(const QString &from, const QString &to, qint64 originalTimestamp, int msgType);
     static QJsonObject makeFileOffer(const QString &from, const QString &to,
                                      const QString &fileName, qint64 fileSize, const QString &fileId);
     static QJsonObject makeFileAccept(const QString &from, const QString &to, const QString &fileId);

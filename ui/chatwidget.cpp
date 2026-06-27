@@ -401,11 +401,13 @@ void ChatWidget::addFileMessage(const QString &sender, const QString &fileName,
                                                  sender, formatTime(msg.timestamp),
                                                  isOffline, expireDays);
     card->fileId = fileId;
+    card->setTimestamp(msg.timestamp);
     connect(card, &FileMessageCard::acceptClicked, this, &ChatWidget::onFileAcceptClicked);
     connect(card, &FileMessageCard::rejectClicked, this, &ChatWidget::onFileRejectClicked);
     connect(card, &FileMessageCard::openClicked, this, &ChatWidget::onFileOpenClicked);
     connect(card, &FileMessageCard::forwardRequested, this, &ChatWidget::forwardRequested);
     connect(card, &FileMessageCard::deleteRequested, this, &ChatWidget::deleteRequested);
+    connect(card, &FileMessageCard::recallRequested, this, &ChatWidget::recallRequested);
 
     m_fileCards[fileId] = card;
     m_messageLayout->insertWidget(insertIndex, card);
@@ -535,9 +537,17 @@ void ChatWidget::loadHistoryMessages(const QVector<StoredMessage> &messages,
             int insertIndex = m_messageLayout->count() - 1;
             FileMessageCard *fcard = new FileMessageCard(
                 sm.content, fsize, sm.isMine,
-                msg.sender, formatTime(sm.timestamp));
+                msg.sender, formatTime(sm.timestamp),
+                false, -1);
             fcard->fileId = sm.fileId;
             fcard->setMsgId(sm.msgId);
+            fcard->setTimestamp(sm.timestamp);
+            connect(fcard, &FileMessageCard::acceptClicked, this, &ChatWidget::onFileAcceptClicked);
+            connect(fcard, &FileMessageCard::rejectClicked, this, &ChatWidget::onFileRejectClicked);
+            connect(fcard, &FileMessageCard::openClicked, this, &ChatWidget::onFileOpenClicked);
+            connect(fcard, &FileMessageCard::forwardRequested, this, &ChatWidget::forwardRequested);
+            connect(fcard, &FileMessageCard::deleteRequested, this, &ChatWidget::deleteRequested);
+            connect(fcard, &FileMessageCard::recallRequested, this, &ChatWidget::recallRequested);
 
             connect(fcard, &FileMessageCard::acceptClicked, this, &ChatWidget::onFileAcceptClicked);
             connect(fcard, &FileMessageCard::rejectClicked, this, &ChatWidget::onFileRejectClicked);
@@ -616,9 +626,26 @@ void ChatWidget::setMessageRecalled(qint64 msgId, bool isMine)
         QLayoutItem *item = m_messageLayout->itemAt(i);
         if (!item || !item->widget()) continue;
 
-        MessageBubble *bubble = qobject_cast<MessageBubble*>(item->widget());
+        QWidget *w = item->widget();
+        bool found = false;
+
+        // 检查 MessageBubble
+        MessageBubble *bubble = qobject_cast<MessageBubble*>(w);
         if (bubble && bubble->msgId() == msgId && !bubble->isRecalled()) {
             bubble->setRecalled(true, isMine);
+            found = true;
+        }
+
+        // 检查 FileMessageCard
+        if (!found) {
+            FileMessageCard *card = qobject_cast<FileMessageCard*>(w);
+            if (card && card->msgId() == msgId && !card->isRecalled()) {
+                card->setRecalled(true, isMine);
+                found = true;
+            }
+        }
+
+        if (found) {
             // 更新 m_messages 中的状态
             for (int j = 0; j < m_messages.size(); ++j) {
                 if (m_messages[j].msgId == msgId) {

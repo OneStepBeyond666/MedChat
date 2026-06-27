@@ -77,8 +77,8 @@ private slots:
                                   const QString &region = QString());
     void onAddFriendRequested();
     void onMessageDeleteRequested(qint64 msgId);
-    void onMessageRecallRequested(qint64 msgId, qint64 timestamp);
-    void onMessageRecalled(const QString &from, const QString &to, qint64 originalTimestamp);
+    void onMessageRecallRequested(qint64 msgId, qint64 timestamp, int msgType);
+    void onMessageRecalled(const QString &from, const QString &to, qint64 originalTimestamp, int msgType);
     void onForwardMessage(int msgType, const QString &content, const QString &fileId);
 
 private:

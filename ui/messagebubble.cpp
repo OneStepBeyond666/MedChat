@@ -174,7 +174,7 @@ void MessageBubble::onDeleteClicked()
 void MessageBubble::onRecallClicked()
 {
     if (m_msgId > 0 && !m_isRecalled)
-        emit recallRequested(m_msgId, m_timestamp);
+        emit recallRequested(m_msgId, m_timestamp, 0);  // 0=文本消息
 }
 
 void MessageBubble::onForwardClicked()
@@ -203,15 +203,16 @@ FileMessageCard::FileMessageCard(const QString &fileName, qint64 fileSize, bool 
                                  const QString &senderName, const QString &timeStr,
                                  bool isOffline, int expireDays,
                                  QWidget *parent)
-    : QWidget(parent), m_isOffline(isOffline), m_expireDays(expireDays)
+    : QWidget(parent), m_isOffline(isOffline), m_expireDays(expireDays), m_isMine(isMine)
 {
-    setupUI(fileName, fileSize, isMine, senderName, timeStr);
+    setupUI(fileName, fileSize, isMine, senderName, timeStr, isOffline, expireDays);
     setContextMenuPolicy(Qt::CustomContextMenu);
     connect(this, &QWidget::customContextMenuRequested, this, &FileMessageCard::showContextMenu);
 }
 
 void FileMessageCard::setupUI(const QString &fileName, qint64 fileSize, bool isMine,
-                               const QString &senderName, const QString &timeStr)
+                               const QString &senderName, const QString &timeStr,
+                               bool isOffline, int expireDays)
 {
     QHBoxLayout *outerLayout = new QHBoxLayout(this);
     outerLayout->setContentsMargins(10, 4, 10, 4);
@@ -365,6 +366,28 @@ QString FileMessageCard::formatSize(qint64 bytes)
     return QString::number(bytes / (1024.0 * 1024.0 * 1024.0), 'f', 2) + " GB";
 }
 
+void FileMessageCard::setRecalled(bool recalled, bool isMine)
+{
+    m_isRecalled = recalled;
+    if (recalled) {
+        // 隐藏文件相关控件
+        m_fileSizeLabel->hide();
+        m_progressBar->hide();
+        m_statusLabel->hide();
+        m_acceptBtn->hide();
+        m_rejectBtn->hide();
+        m_openBtn->hide();
+
+        // 修改文件名为"已撤回"
+        m_fileNameLabel->setText(isMine
+            ? QStringLiteral("[你撤回了一条消息]")
+            : QStringLiteral("[对方撤回了一条消息]"));
+        m_fileNameLabel->setStyleSheet(
+            "font-size: 12px; color: #999999; font-style: italic; border: none;"
+        );
+    }
+}
+
 void FileMessageCard::showContextMenu(const QPoint &pos)
 {
     QMenu menu(this);
@@ -416,6 +439,18 @@ void FileMessageCard::showContextMenu(const QPoint &pos)
         QAction *deleteAction = menu.addAction(QStringLiteral("删除"));
         connect(deleteAction, &QAction::triggered, this, [this]() {
             emit deleteRequested(m_msgId);
+        });
+    }
+
+    // 撤回：仅自己发送的消息 && 2分钟内
+    qint64 timeDiff = QDateTime::currentMSecsSinceEpoch() - m_timestamp;
+    bool canRecall = m_isMine && (timeDiff <= 120000);
+    if (canRecall) {
+        menu.addSeparator();
+        QAction *recallAction = menu.addAction(QStringLiteral("撤回"));
+        connect(recallAction, &QAction::triggered, this, [this]() {
+            if (m_msgId > 0)
+                emit recallRequested(m_msgId, m_timestamp, 1);  // 1=文件消息
         });
     }
 
