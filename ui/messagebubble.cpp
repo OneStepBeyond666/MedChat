@@ -293,7 +293,14 @@ void FileMessageCard::setupUI(const QString &fileName, qint64 fileSize, bool isM
         "background: #07c160; color: white; border: none; border-radius: 4px; font-size: 12px;"
     );
     m_acceptBtn->setVisible(!isMine);
-    connect(m_acceptBtn, &QPushButton::clicked, this, &FileMessageCard::acceptClicked);
+    connect(m_acceptBtn, &QPushButton::clicked, this, [this]() {
+        // 【关键】立即禁用按钮，防止重复点击
+        m_acceptBtn->setEnabled(false);
+        m_rejectBtn->setEnabled(false);
+        m_acceptBtn->hide();
+        m_rejectBtn->hide();
+        emit acceptClicked();
+    });
     bottomRow->addWidget(m_acceptBtn);
 
     m_rejectBtn = new QPushButton("拒绝");
@@ -302,7 +309,14 @@ void FileMessageCard::setupUI(const QString &fileName, qint64 fileSize, bool isM
         "background: #f44336; color: white; border: none; border-radius: 4px; font-size: 12px;"
     );
     m_rejectBtn->setVisible(!isMine);
-    connect(m_rejectBtn, &QPushButton::clicked, this, &FileMessageCard::rejectClicked);
+    connect(m_rejectBtn, &QPushButton::clicked, this, [this]() {
+        // 【关键】立即禁用按钮，防止重复点击
+        m_acceptBtn->setEnabled(false);
+        m_rejectBtn->setEnabled(false);
+        m_acceptBtn->hide();
+        m_rejectBtn->hide();
+        emit rejectClicked();
+    });
     bottomRow->addWidget(m_rejectBtn);
 
     m_openBtn = new QPushButton("打开文件");
@@ -311,7 +325,9 @@ void FileMessageCard::setupUI(const QString &fileName, qint64 fileSize, bool isM
         "background: #1976D2; color: white; border: none; border-radius: 4px; font-size: 12px;"
     );
     m_openBtn->setVisible(false);
-    connect(m_openBtn, &QPushButton::clicked, this, &FileMessageCard::openClicked);
+    connect(m_openBtn, &QPushButton::clicked, this, [this]() {
+        emit openClicked();
+    });
     bottomRow->addWidget(m_openBtn);
 
     cardLayout->addLayout(bottomRow);
