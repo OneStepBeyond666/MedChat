@@ -211,6 +211,7 @@ void ChatClient::processMessage(const QJsonObject &msg)
     else if (type == MsgType::FileReject)   handleFileReject(msg);
     else if (type == MsgType::FileData)     handleFileData(msg);
     else if (type == MsgType::FileEnd)      handleFileEnd(msg);
+    else if (type == MsgType::FileOfflineCached) handleFileOfflineCached(msg);
     else if (type == MsgType::Error)        handleError(msg);
     else if (type == MsgType::OfflineSync)  handleOfflineSync(msg);
     else if (type == MsgType::ErrorStranger) handleStrangerError(msg);
@@ -410,6 +411,13 @@ void ChatClient::handleFileAccept(const QJsonObject &msg)
 {
     QString fileId = msg["file_id"].toString();
     emit fileAccepted(fileId);
+
+    // 标记是否为离线文件发送（需等待服务端缓存确认）
+    auto it = m_fileTransfers.find(fileId);
+    if (it != m_fileTransfers.end()) {
+        it->isOffline = msg.contains("is_offline") && msg["is_offline"].toBool();
+    }
+
     // 开始发送文件数据
     continueSendingFile(fileId);
 }
@@ -419,9 +427,11 @@ void ChatClient::handleFileReject(const QJsonObject &msg)
     QString fileId = msg["file_id"].toString();
     QString reason = msg["reason"].toString();
     emit fileRejected(fileId, reason);
-    // 清理
+    // 清理发送方状态
     if (m_pendingSendFiles.contains(fileId))
         m_pendingSendFiles.remove(fileId);
+    if (m_fileTransfers.contains(fileId))
+        m_fileTransfers.remove(fileId);
 }
 
 void ChatClient::handleFileData(const QJsonObject &msg)
@@ -518,6 +528,20 @@ void ChatClient::handleFileEnd(const QJsonObject &msg)
 
     m_fileTransfers.erase(it);
     emit fileCompleted(fileId, finalPath);
+}
+
+void ChatClient::handleFileOfflineCached(const QJsonObject &msg)
+{
+    QString fileId = msg["file_id"].toString();
+    QString md5 = msg["md5"].toString();
+    qDebug() << "[Client] 离线文件缓存确认:" << fileId << "md5=" << md5;
+
+    // 清理发送方 transfer 条目
+    m_fileTransfers.remove(fileId);
+    m_pendingSendFiles.remove(fileId);
+
+    // 通知 UI 发送完成
+    emit fileSendCompleted(fileId);
 }
 
 void ChatClient::handleError(const QJsonObject &msg)
@@ -768,9 +792,16 @@ void ChatClient::continueSendingFile(const QString &fileId)
     m_pendingSendFiles.remove(fileId);
     file.close();
 
-    // 清理发送方的 transfer 条目并通知 UI 发送完成
-    m_fileTransfers.remove(fileId);
-    emit fileSendCompleted(fileId);
+    // 离线文件：不立即通知 UI 完成，等待服务端缓存确认（file_offline_cached）
+    // 在线文件：立即通知 UI 完成
+    // 使用前面已有的 it（770行），避免重复声明
+    if (it != m_fileTransfers.end() && it->isOffline) {
+        qDebug() << "[Client] 离线文件上传完成，等待服务端缓存确认:" << fileId;
+        // 不移除条目，等待 file_offline_cached 后再清理
+    } else {
+        m_fileTransfers.remove(fileId);
+        emit fileSendCompleted(fileId);
+    }
 }
 
 void ChatClient::sendGetSecQuestion(const QString &username)

@@ -459,8 +459,11 @@ void ChatServer::handleFileOffer(ClientHandler *handler, const QJsonObject &msg)
             return;
         }
 
-        // 生成 file_id 和存储路径
-        QString fileId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        // 使用客户端发来的 file_id（不再生成新 UUID，防止客户端后续 file_data/file_end 的 file_id 不匹配）
+        QString fileId = msg["file_id"].toString();
+        if (fileId.isEmpty()) {
+            fileId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        }
         QDate today = QDate::currentDate();
         QString ym = QString("%1/%2").arg(today.year()).arg(today.month(), 2, 10, QChar('0'));
         QString dbDir = QCoreApplication::applicationDirPath() + "/" + Constants::DB_FOLDER_NAME;
@@ -516,8 +519,9 @@ void ChatServer::handleFileOffer(ClientHandler *handler, const QJsonObject &msg)
             return;
         }
 
-        // 回复 file_accept 给发送方
+        // 回复 file_accept 给发送方（标记离线文件）
         QJsonObject accept = Protocol::makeFileAccept(from, to, fileId);
+        accept["is_offline"] = true;
         handler->sendMessage(accept);
 
         qDebug() << QString("[文件离线] %1 -> %2 : 开始缓存离线文件 (文件: %3, file_id=%4)")
@@ -656,10 +660,20 @@ void ChatServer::handleFileEnd(ClientHandler *handler, const QJsonObject &msg)
                 QString datPath = it->tmpPath;
                 datPath.replace(".tmp", ".dat");
                 if (QFile::rename(it->tmpPath, datPath)) {
-                    // 更新 server_files 状态（status=1，路径不变）
+                    // 同步更新 finalRelativePath（加上 .dat 扩展名）
+                    it->finalRelativePath = it->finalRelativePath.left(it->finalRelativePath.length() - 4) + ".dat";
+                    // 更新 server_files 状态（status=1，路径带 .dat）
                     m_serverDB->updateServerFileStatus(fileId, 1, it->finalRelativePath);
                     qDebug() << "[文件离线] 接收完成:" << fileId
                              << "path=" << it->finalRelativePath;
+
+                    // 通知发送方：离线文件已缓存确认
+                    ClientHandler *senderHandler = findClient(it->senderUsername);
+                    if (senderHandler) {
+                        QJsonObject cachedMsg = Protocol::makeFileOfflineCached(fileId, actualMd5);
+                        senderHandler->sendMessage(cachedMsg);
+                        qDebug() << "[文件离线] 已通知发送方缓存确认:" << it->senderUsername << fileId;
+                    }
                 } else {
                     qWarning() << "[文件离线] 重命名失败:" << it->tmpPath;
                 }

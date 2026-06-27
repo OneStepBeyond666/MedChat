@@ -29,6 +29,7 @@ namespace MsgType {
     constexpr const char* FileData     = "file_data";
     constexpr const char* FileEnd      = "file_end";
     constexpr const char* FileReject   = "file_reject";
+    constexpr const char* FileOfflineCached = "file_offline_cached";  // 服务端通知发送方：离线文件已缓存确认
 
     // 系统和错误
     constexpr const char* Error        = "error";
@@ -86,6 +87,7 @@ public:
     static QJsonObject makeFileReject(const QString &from, const QString &to, const QString &fileId, const QString &reason);
     static QJsonObject makeFileData(const QString &fileId, const QByteArray &chunk, int seq);
     static QJsonObject makeFileEnd(const QString &fileId, const QString &md5);
+    static QJsonObject makeFileOfflineCached(const QString &fileId, const QString &md5);
 
     // 密码安全快捷构造
     static QJsonObject makeSecQuestionRes(bool success, const QString &question = QString(), const QString &error = QString());

@@ -136,6 +136,14 @@ QJsonObject Protocol::makeFileEnd(const QString &fileId, const QString &md5)
     return obj;
 }
 
+QJsonObject Protocol::makeFileOfflineCached(const QString &fileId, const QString &md5)
+{
+    QJsonObject obj = makeMsg(MsgType::FileOfflineCached);
+    obj["file_id"] = fileId;
+    obj["md5"] = md5;
+    return obj;
+}
+
 QJsonObject Protocol::makeSecQuestionRes(bool success, const QString &question, const QString &error)
 {
     QJsonObject obj = makeMsg(MsgType::SecQuestionRes);

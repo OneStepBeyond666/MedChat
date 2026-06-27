@@ -152,6 +152,7 @@ private:
     void handleFileReject(const QJsonObject &msg);
     void handleFileData(const QJsonObject &msg);
     void handleFileEnd(const QJsonObject &msg);
+    void handleFileOfflineCached(const QJsonObject &msg);
     void handleError(const QJsonObject &msg);
     void handleOfflineSync(const QJsonObject &msg);
     void handleStrangerError(const QJsonObject &msg);
