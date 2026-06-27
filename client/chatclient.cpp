@@ -415,6 +415,7 @@ void ChatClient::handleFileOffer(const QJsonObject &msg)
 void ChatClient::handleFileAccept(const QJsonObject &msg)
 {
     QString fileId = msg["file_id"].toString();
+    qDebug() << "[ChatClient] handleFileAccept:" << fileId;
     emit fileAccepted(fileId);
 
     // 标记是否为离线文件发送（需等待服务端缓存确认）
@@ -443,10 +444,14 @@ void ChatClient::handleFileData(const QJsonObject &msg)
 {
     QString fileId = msg["file_id"].toString();
     auto it = m_fileTransfers.find(fileId);
-    if (it == m_fileTransfers.end()) return;
+    if (it == m_fileTransfers.end()) {
+        qWarning() << "[ChatClient] handleFileData: fileId not found" << fileId;
+        return;
+    }
 
     QString b64 = msg["data"].toString();
     QByteArray chunk = QByteArray::fromBase64(b64.toLatin1());
+    qDebug() << "[ChatClient] handleFileData:" << fileId << "chunk size=" << chunk.size();
 
     if (it->file && it->file->isOpen()) {
         it->file->write(chunk);
@@ -475,6 +480,7 @@ void ChatClient::handleFileEnd(const QJsonObject &msg)
 {
     QString fileId = msg["file_id"].toString();
     QString md5 = msg["md5"].toString();
+    qDebug() << "[ChatClient] handleFileEnd:" << fileId << "md5=" << md5;
     auto it = m_fileTransfers.find(fileId);
     if (it == m_fileTransfers.end()) return;
 
@@ -773,7 +779,11 @@ void ChatClient::sendJson(const QJsonObject &obj)
 
 void ChatClient::continueSendingFile(const QString &fileId)
 {
-    if (!m_pendingSendFiles.contains(fileId)) return;
+    qDebug() << "[ChatClient] continueSendingFile:" << fileId;
+    if (!m_pendingSendFiles.contains(fileId)) {
+        qWarning() << "[ChatClient] continueSendingFile: fileId not in m_pendingSendFiles" << fileId;
+        return;
+    }
     QString filePath = m_pendingSendFiles[fileId];
 
     QFile file(filePath);
@@ -806,6 +816,7 @@ void ChatClient::continueSendingFile(const QString &fileId)
     QString md5 = QString::fromLatin1(hash.result().toHex());
     QJsonObject endMsg = Protocol::makeFileEnd(fileId, md5);
     endMsg["to"] = to;
+    qDebug() << "[ChatClient] 发送 file_end:" << fileId << "md5=" << md5;
     sendJson(endMsg);
 
     m_pendingSendFiles.remove(fileId);

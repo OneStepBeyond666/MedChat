@@ -1,5 +1,6 @@
 #include "messagebubble.h"
 #include "client/localdb.h"
+#include <QDebug>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QPushButton>
@@ -81,8 +82,16 @@ void MessageBubble::setupUI(const QString &text, const QString &senderName,
 
 void MessageBubble::showContextMenu(const QPoint &pos)
 {
+    // 调试日志
+    qDebug() << "[MessageBubble] showContextMenu: m_isRecalled=" << m_isRecalled
+             << "m_isMine=" << m_isMine << "m_msgId=" << m_msgId
+             << "m_timestamp=" << m_timestamp;
+
     // 已撤回消息不显示菜单
-    if (m_isRecalled) return;
+    if (m_isRecalled) {
+        qDebug() << "[MessageBubble] 菜单未显示：已撤回";
+        return;
+    }
 
     QMenu menu(this);
     menu.setStyleSheet(
@@ -228,15 +237,15 @@ void FileMessageCard::setupUI(const QString &fileName, qint64 fileSize, bool isM
     cardLayout->setSpacing(6);
 
     // 发送者
-    QLabel *nameLabel = new QLabel(senderName + "  " + timeStr);
-    nameLabel->setStyleSheet("font-size: 11px; color: #999; border: none;");
-    cardLayout->addWidget(nameLabel);
+    m_nameLabel = new QLabel(senderName + "  " + timeStr);
+    m_nameLabel->setStyleSheet("font-size: 11px; color: #999; border: none;");
+    cardLayout->addWidget(m_nameLabel);
 
     // 文件图标和名称
     QHBoxLayout *fileRow = new QHBoxLayout;
-    QLabel *iconLabel = new QLabel(QStringLiteral("\u25A0"));
-    iconLabel->setStyleSheet("font-size: 24px; border: none;");
-    fileRow->addWidget(iconLabel);
+    m_iconLabel = new QLabel(QStringLiteral("\u25A0"));
+    m_iconLabel->setStyleSheet("font-size: 24px; border: none;");
+    fileRow->addWidget(m_iconLabel);
 
     QVBoxLayout *fileInfoLayout = new QVBoxLayout;
     m_fileNameLabel = new QLabel(fileName);
@@ -334,6 +343,8 @@ void FileMessageCard::setState(State state, const QString &info)
         break;
     case Transferring:
         m_statusLabel->setText("传输中...");
+        m_acceptBtn->hide();   // 传输开始后隐藏接受/拒绝按钮，防止重复点击
+        m_rejectBtn->hide();
         break;
     case Completed:
         m_statusLabel->setText("已完成");
@@ -371,12 +382,14 @@ void FileMessageCard::setRecalled(bool recalled, bool isMine)
     m_isRecalled = recalled;
     if (recalled) {
         // 隐藏文件相关控件
+        m_iconLabel->hide();       // 隐藏文件图标
         m_fileSizeLabel->hide();
         m_progressBar->hide();
         m_statusLabel->hide();
         m_acceptBtn->hide();
         m_rejectBtn->hide();
         m_openBtn->hide();
+        m_nameLabel->hide();      // 隐藏发送者名称和时间
 
         // 修改文件名为"已撤回"
         m_fileNameLabel->setText(isMine
@@ -390,6 +403,11 @@ void FileMessageCard::setRecalled(bool recalled, bool isMine)
 
 void FileMessageCard::showContextMenu(const QPoint &pos)
 {
+    // 调试日志
+    qDebug() << "[FileMessageCard] showContextMenu: m_isRecalled=" << m_isRecalled
+             << "m_isMine=" << m_isMine << "m_msgId=" << m_msgId
+             << "m_timestamp=" << m_timestamp << "m_state=" << m_state;
+
     QMenu menu(this);
     menu.setStyleSheet(
         "QMenu { background-color: white; border: 1px solid #e0e0e0; border-radius: 4px; padding: 4px 0; min-width: 120px; }"
@@ -445,6 +463,8 @@ void FileMessageCard::showContextMenu(const QPoint &pos)
     // 撤回：仅自己发送的消息 && 2分钟内
     qint64 timeDiff = QDateTime::currentMSecsSinceEpoch() - m_timestamp;
     bool canRecall = m_isMine && (timeDiff <= 120000);
+    qDebug() << "[FileMessageCard] 撤回检查: m_isMine=" << m_isMine
+             << "timeDiff=" << timeDiff << "canRecall=" << canRecall;
     if (canRecall) {
         menu.addSeparator();
         QAction *recallAction = menu.addAction(QStringLiteral("撤回"));

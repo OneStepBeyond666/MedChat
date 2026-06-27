@@ -88,6 +88,8 @@ private:
 
     QLabel *m_fileNameLabel;
     QLabel *m_fileSizeLabel;
+    QLabel *m_iconLabel;      // 文件图标
+    QLabel *m_nameLabel;      // 发送者名称和时间
     QProgressBar *m_progressBar;
     QLabel *m_statusLabel;
     QPushButton *m_acceptBtn;
